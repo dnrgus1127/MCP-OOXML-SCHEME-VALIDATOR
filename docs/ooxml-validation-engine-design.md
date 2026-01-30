@@ -65,6 +65,24 @@ SchemaRegistry
 3. shared-commonSimpleTypes.xsd의 simpleTypes.get("ST_OnOff") 반환
 ```
 
+### 2.3 스키마 로딩/병합 정책
+
+```
+XSD 로딩 원칙:
+  - include: 동일 targetNamespace 간 스키마 병합
+  - import: 다른 targetNamespace 참조를 레지스트리에 추가
+
+네임스페이스 충돌 처리:
+  - 동일 namespace의 다중 스키마는 "병합"이 기본
+  - 같은 이름(타입/요소/그룹)이 중복 정의될 경우:
+      1) 동일 정의 → 허용
+      2) 상이 정의 → 에러 또는 경고(옵션으로 제어)
+
+스키마 파서 책임:
+  - prefix → namespace URI 매핑은 스키마 단위로 유지
+  - 레지스트리는 URI 기준으로 조회만 담당
+```
+
 ---
 
 ## 3. 검증 상태 머신
@@ -362,6 +380,8 @@ Choice 정의: (pieChart | barChart | lineChart | areaChart)
 1. ═══ 네임스페이스 처리 ═══
    - xmlns 선언 파싱하여 namespaceStack에 푸시
    - element의 prefix로 실제 namespace URI 해결
+   - elementFormDefault/attributeFormDefault에 따라
+     요소/속성의 qualified 여부 결정
 
 2. ═══ 부모 Compositor 검증 (순서 체크) ═══
    IF elementStack이 비어있지 않음:
@@ -392,6 +412,8 @@ Choice 정의: (pieChart | barChart | lineChart | areaChart)
 4. ═══ 속성 검증 ═══
    IF schemaType != null AND schemaType.kind == 'complexType':
      validateAttributes(element.attributes, schemaType)
+     // ID/IDREF 수집은 여기서 수행
+     // (타입이 xs:ID/xs:IDREF인 속성 값 기록)
 
 5. ═══ 새 프레임 푸시 ═══
    newFrame = {
@@ -469,8 +491,10 @@ Choice 정의: (pieChart | barChart | lineChart | areaChart)
      // 네임스페이스 속성은 스킵
      IF xmlAttr.name.startsWith('xmlns'):
        CONTINUE
-     
-     schemaDef = allowedAttrs.get(xmlAttr.localName)
+    
+    // qualified 속성은 (namespaceUri, localName) 기준으로 조회
+    // unqualified 속성은 localName 기준으로 조회
+    schemaDef = resolveAttributeByQName(allowedAttrs, xmlAttr)
      
      IF schemaDef == null:
        // anyAttribute 허용 여부 확인
@@ -521,6 +545,11 @@ Choice 정의: (pieChart | barChart | lineChart | areaChart)
 SWITCH simpleType.content.kind:
 
   CASE 'restriction':
+    // 0. whiteSpace 정규화
+    //   - preserve: 변경 없음
+    //   - replace: 탭/개행 → 공백
+    //   - collapse: 연속 공백 축소 + 앞뒤 공백 제거
+    value = normalizeWhiteSpace(value, simpleType)
     // 1. 기반 타입 먼저 검증
     IF content.base.isBuiltin:
       IF NOT validateBuiltinType(value, content.base.name):
@@ -798,6 +827,18 @@ any 처리 예시:
        RETURN Success
 ```
 
+### 8.4 anyAttribute 처리 원칙
+
+```
+함수: handleAnyAttribute(attribute, anyAttrDef)
+
+1. namespace 제약은 anyElement와 동일 규칙 적용
+2. processContents:
+   - strict: 스키마가 없으면 에러
+   - lax: 스키마 있으면 검증, 없으면 통과
+   - skip: 무조건 통과
+```
+
 ---
 
 ## 9. 중첩 Compositor 처리
@@ -968,6 +1009,18 @@ interface ValidationError {
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### 10.3 에러/경고 레벨 정책
+
+```
+에러/경고 기준 예시:
+  - strict 위반 (알 수 없는 타입, 잘못된 순서, 값 오류) → error
+  - lax/skip에서 스키마 누락 등 → warning 또는 무시 (옵션)
+
+ValidationOptions 예시:
+  reportLaxWarnings: boolean
+  unknownTypeSeverity: 'error' | 'warning'
+```
+
 ---
 
 ## 11. 최적화 전략
@@ -1069,9 +1122,23 @@ interface ValidationResult {
 
 ---
 
-## 13. 예시 검증 시나리오
+## 13. ID/IDREF 검증 흐름
 
-### 13.1 주어진 XML 검증 흐름
+```
+1) 속성 검증 단계에서 xs:ID/xs:IDREF 타입을 식별
+   - ID: idValues에 저장 (중복이면 에러)
+   - IDREF: idrefValues에 저장
+
+2) END_DOCUMENT 시점에 IDREF 교차검증
+   - idrefValues ⊆ idValues 여야 함
+   - 누락된 참조는 INVALID_IDREF 에러
+```
+
+---
+
+## 14. 예시 검증 시나리오
+
+### 14.1 주어진 XML 검증 흐름
 
 ```
 입력 XML (일부):
@@ -1091,7 +1158,7 @@ interface ValidationResult {
             ...
 ```
 
-### 13.2 검증 트레이스
+### 14.2 검증 트레이스
 
 ```
 STEP 1: c:chartSpace 진입
@@ -1140,7 +1207,7 @@ FINAL: 검증 완료
 
 ---
 
-## 14. 향후 확장 고려사항
+## 15. 향후 확장 고려사항
 
 ### 14.1 Identity Constraints (unique, key, keyref)
 ```
@@ -1167,7 +1234,7 @@ XSD 1.1의 xsd:assert 지원:
 
 ---
 
-## 15. 요약
+## 16. 요약
 
 이 설계는 다음을 달성합니다:
 
