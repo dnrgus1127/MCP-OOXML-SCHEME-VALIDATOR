@@ -1,7 +1,7 @@
 # OOXML Schema Validator
 
-OOXML(.xlsx / .docx / .pptx)과 ODF(.ods / .odt / .odp) 문서를 열어 내부 XML을 **편집**하고, 두 문서/패키지를 **비교**하며, XSD 스키마 기반으로 **검증**할 수 있는 데스크톱 앱입니다.
-내부적으로는 OOXML XSD 스키마를 JSON 런타임 타입으로 변환해 XML을 스트리밍 방식으로 검증하는 엔진을 사용하며, 그 위에 Monaco 에디터 기반의 데스크톱 UI를 얹어 편집/비교 워크플로우를 제공합니다.
+OOXML(.xlsx / .docx / .pptx)과 ODF(.ods / .odt / .odp) 문서를 열어 내부 XML을 **편집**하고, 두 문서/패키지를 **비교**하며, XSD 스키마 기반으로 **검증(Pre)** 할 수 있는 데스크톱 앱입니다.
+내부적으로는 OOXML XSD 스키마를 JSON 런타임 타입으로 변환해 XML을 스트리밍 방식으로 검증하는 엔진을 사용하며, 그 위에 Monaco 에디터 기반의 데스크톱 UI를 얹어 편집/비교 워크플로우를 제공합니다. 현재 검증 엔진은 실험적 Pre 기능이며, 추후 별도 OOXML LSP 서버를 개발해 검증 방식과 에디터 진단 표시를 LSP diagnostics 기반으로 교체하는 방안을 검토 중입니다.
 `docs/ooxml-validation-engine-design.md`와 `docs/ooxml-schema-types.ts` 설계를 기반으로 핵심 런타임을 구성했습니다.
 현재 저장소는 **모노레포**로 구성되어 검증 엔진(`core`)과 데스크톱 UI(`desktop`)를 중심으로 개발 중입니다.
 
@@ -10,7 +10,7 @@ OOXML(.xlsx / .docx / .pptx)과 ODF(.ods / .odt / .odp) 문서를 열어 내부 
 - **열기**: OOXML/ODF 패키지(zip)를 풀어 내부 XML 파트(파일) 트리를 탐색
 - **편집**: Monaco 기반 에디터로 XML 파트를 직접 수정하고 패키지로 저장
 - **비교**: 두 패키지(또는 XML 파일) 간 구조/내용 차이를 diff 로 확인
-- **검증**: 로드된 XSD 스키마(OOXML sml/wml/pml/dml/shared 등)에 맞춰 XML 유효성 검사 및 오류 위치 표시
+- **검증(Pre)**: 로드된 XSD 스키마(OOXML sml/wml/pml/dml/shared 등)에 맞춰 XML 유효성 검사 및 오류 위치 표시. 향후 OOXML LSP 서버 기반 diagnostics 방식으로 교체 검토 중
 
 ## 데스크톱 앱 빌드 (Windows exe)
 
@@ -78,7 +78,7 @@ pnpm --filter @ooxml/desktop run package:win
 
 ## 패키지 구성
 
-- `packages/core`: OOXML 스키마 검증 엔진 **(주요 개발 대상)**
+- `packages/core`: OOXML 스키마 검증 엔진 **(주요 개발 대상, 현재 Pre 기능)**
 - `packages/desktop`: 데스크톱 UI **(주요 개발 대상)**
 - `packages/parser`: XML 이벤트 스트리밍 파서
 - `packages/mcp`: MCP 서버/도구 래퍼 (후순위)
@@ -129,8 +129,10 @@ pnpm run typecheck
 
 현재 **core** (검증 엔진)와 **desktop** (데스크톱 UI) 개발에 집중하고 있습니다.
 MCP 통합은 후순위로 계획되어 있습니다.
+검증 엔진은 현재 Pre 기능으로 제공하며, 추후 별도 OOXML LSP 서버를 개발해 데스크톱 에디터의 인라인 diagnostics와 배치 검증 모두 LSP 기반으로 전환하는 방안을 검토 중입니다.
 
 ## 참고 문서
 
 - MCP 통합 시나리오: `docs/mcp-integration.md`
 - Electron/MCP 환경설정: `docs/electron-mcp-setup.md`
+- 검증 엔진 교체 계획: `docs/lsp-validation-engine-replacement-plan.md`
