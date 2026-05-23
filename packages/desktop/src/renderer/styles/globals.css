@@ -150,6 +150,30 @@ body {
   color: #2563eb;
 }
 
+.toolbar-btn--pre {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-pre-badge,
+.validation-pre-badge,
+.settings-pre-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 18px;
+  padding: 1px 6px;
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .compare-mode-badge {
   color: #2563eb;
   font-weight: 600;
@@ -778,6 +802,9 @@ body {
 }
 
 .validation-header h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   font-weight: 600;
 }
@@ -2404,6 +2431,12 @@ body {
   min-width: 0;
 }
 
+.settings-control-with-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .settings-row.align-start .settings-row-control {
   justify-content: stretch;
 }
@@ -2423,6 +2456,11 @@ body {
 
 .settings-toggle.on {
   background: var(--accent);
+}
+
+.settings-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .settings-toggle:focus-visible {
@@ -2468,6 +2506,11 @@ body {
 
 .settings-input:hover {
   border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+}
+
+.settings-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .settings-input:focus-visible {

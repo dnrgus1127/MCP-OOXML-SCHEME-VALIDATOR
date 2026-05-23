@@ -62,6 +62,9 @@ export function XmlEditorScreen({
     searchDocument,
     clearSearch,
   } = useDocumentStore()
+  const validationFeatureEnabled = useSettingsStore(
+    (state) => state.xmlEditor.validationFeatureEnabled
+  )
   const validateOnOpen = useSettingsStore((state) => state.xmlEditor.validateOnOpen)
   const revalidateShortcut = useSettingsStore((state) => state.xmlEditor.revalidateShortcut)
 
@@ -107,10 +110,12 @@ export function XmlEditorScreen({
     const saved = await saveDocument(filePath)
     if (!saved) return false
 
-    await validate()
-    setShowValidation(true)
+    if (validationFeatureEnabled) {
+      await validate()
+      setShowValidation(true)
+    }
     return true
-  }, [filePath, saveDocument, shouldWarnBeforeOverwrite, validate])
+  }, [filePath, saveDocument, shouldWarnBeforeOverwrite, validate, validationFeatureEnabled])
 
   const loadFileAtPath = useCallback(
     async (path: string) => {
@@ -125,14 +130,14 @@ export function XmlEditorScreen({
       })
       await onRecentRecord?.()
 
-      if (validateOnOpen) {
+      if (validationFeatureEnabled && validateOnOpen) {
         await validate()
         setShowValidation(true)
       }
 
       return true
     },
-    [loadDocument, onRecentRecord, setFilePath, validate, validateOnOpen]
+    [loadDocument, onRecentRecord, setFilePath, validate, validateOnOpen, validationFeatureEnabled]
   )
 
   const handleChangeFile = useCallback(
@@ -170,27 +175,35 @@ export function XmlEditorScreen({
       const newPath = await window.electronAPI.saveFile(filePath ?? undefined)
       if (newPath) {
         const saved = await saveDocumentAs(newPath)
-        if (saved) {
+        if (saved && validationFeatureEnabled) {
           await validate()
           setShowValidation(true)
         }
       }
     })
     return cleanup
-  }, [filePath, saveDocumentAs, validate])
+  }, [filePath, saveDocumentAs, validate, validationFeatureEnabled])
 
   // Handle validate from menu
   useEffect(() => {
     const cleanup = window.electronAPI.onMenuValidate(async () => {
+      if (!validationFeatureEnabled) return
       await validate()
       setShowValidation(true)
     })
     return cleanup
-  }, [validate])
+  }, [validate, validationFeatureEnabled])
+
+  useEffect(() => {
+    if (!validationFeatureEnabled) {
+      setShowValidation(false)
+    }
+  }, [validationFeatureEnabled])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!documentData) return
+      if (!validationFeatureEnabled) return
       if (isSettingsOpen) return
       if (event.repeat) return
       if (!matchesShortcut(event, revalidateShortcut)) return
@@ -204,7 +217,7 @@ export function XmlEditorScreen({
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [documentData, isSettingsOpen, revalidateShortcut, validate])
+  }, [documentData, isSettingsOpen, revalidateShortcut, validate, validationFeatureEnabled])
 
   const handleSave = async () => {
     await executeSave()
@@ -214,7 +227,7 @@ export function XmlEditorScreen({
     const newPath = await window.electronAPI.saveFile(filePath ?? undefined)
     if (newPath) {
       const saved = await saveDocumentAs(newPath)
-      if (saved) {
+      if (saved && validationFeatureEnabled) {
         await validate()
         setShowValidation(true)
       }
@@ -256,6 +269,7 @@ export function XmlEditorScreen({
   }
 
   const handleValidate = async () => {
+    if (!validationFeatureEnabled) return
     await validate()
     setShowValidation(true)
   }
@@ -323,6 +337,7 @@ export function XmlEditorScreen({
         onSave={handleSave}
         onSaveAs={handleSaveAs}
         onValidate={handleValidate}
+        validationEnabled={validationFeatureEnabled}
         onOpenSettings={onOpenSettings}
         hasDocument={!!documentData}
         filePath={filePath}
@@ -357,9 +372,7 @@ export function XmlEditorScreen({
                 parts={documentData.parts}
                 selectedPart={selectedPart}
                 onSelectPart={handleSelectPart}
-                comparisonParts={
-                  isCompareMode ? comparisonDocumentData?.parts : undefined
-                }
+                comparisonParts={isCompareMode ? comparisonDocumentData?.parts : undefined}
                 partDiffStatus={isCompareMode ? partDiffStatus : undefined}
               />
             </aside>
@@ -399,7 +412,7 @@ export function XmlEditorScreen({
                 </div>
               )}
 
-              {showValidation ? (
+              {validationFeatureEnabled && showValidation ? (
                 <div className="validation-panel">
                   <ValidationPanel
                     results={validationResults}

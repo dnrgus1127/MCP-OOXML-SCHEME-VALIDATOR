@@ -6,6 +6,7 @@ interface ToolbarProps {
   onSave: () => void
   onSaveAs: () => void
   onValidate: () => void
+  validationEnabled?: boolean
   onOpenSettings?: () => void
   openLabel?: string
   hasDocument: boolean
@@ -25,6 +26,7 @@ export function Toolbar({
   onSave,
   onSaveAs,
   onValidate,
+  validationEnabled = false,
   onOpenSettings,
   openLabel = 'Open',
   hasDocument,
@@ -63,9 +65,16 @@ export function Toolbar({
           <button onClick={onSaveAs} className="toolbar-btn" disabled={writeDisabled}>
             💾 Save As
           </button>
-          <button onClick={onValidate} className="toolbar-btn" disabled={writeDisabled}>
-            ✓ Validate
-          </button>
+          {validationEnabled && (
+            <button
+              onClick={onValidate}
+              className="toolbar-btn toolbar-btn--pre"
+              disabled={writeDisabled}
+              title="개발 중인 Pre 검증 기능"
+            >
+              ✓ Validate <span className="toolbar-pre-badge">Pre</span>
+            </button>
+          )}
           {onToggleCompare && (
             <button
               onClick={onToggleCompare}

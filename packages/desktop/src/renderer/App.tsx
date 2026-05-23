@@ -160,6 +160,9 @@ export default function App() {
   const saveDocument = useDocumentStore((state) => state.saveDocument)
   const validateDocument = useDocumentStore((state) => state.validate)
   const loadComparison = useDocumentStore((state) => state.loadComparison)
+  const validationFeatureEnabled = useSettingsStore(
+    (state) => state.xmlEditor.validationFeatureEnabled
+  )
   const validateOnOpen = useSettingsStore((state) => state.xmlEditor.validateOnOpen)
   const downloadFolders = useSettingsStore((state) => state.general.downloadFolders)
   const effectiveEditorTheme = useSettingsStore((state) => state.effectiveEditorTheme)
@@ -213,13 +216,20 @@ export default function App() {
       const loaded = await loadDocument(path)
       if (!loaded) return false
 
-      if (validateOnOpen) {
+      if (validationFeatureEnabled && validateOnOpen) {
         await validateDocument()
       }
       await recordRecentFile(path, 'xml-editor')
       return true
     },
-    [loadDocument, recordRecentFile, setFilePath, validateDocument, validateOnOpen]
+    [
+      loadDocument,
+      recordRecentFile,
+      setFilePath,
+      validateDocument,
+      validateOnOpen,
+      validationFeatureEnabled,
+    ]
   )
 
   const confirmFileChangeIfNeeded = useCallback(async () => {
@@ -252,7 +262,7 @@ export default function App() {
       const loaded = await loadDocument(path)
       if (!loaded) return
 
-      if (validateOnOpen) {
+      if (validationFeatureEnabled && validateOnOpen) {
         await validateDocument()
       }
       await recordRecentFile(path, 'xml-editor')
@@ -268,6 +278,7 @@ export default function App() {
     setFilePath,
     validateDocument,
     validateOnOpen,
+    validationFeatureEnabled,
   ])
 
   useEffect(() => {
@@ -356,8 +367,7 @@ export default function App() {
         return
       }
 
-      const isCompareDrop =
-        droppedPaths.length === 2 && droppedPaths.every(isSupportedOfficePath)
+      const isCompareDrop = droppedPaths.length === 2 && droppedPaths.every(isSupportedOfficePath)
 
       if (
         !isCompareDrop &&
@@ -406,7 +416,7 @@ export default function App() {
         const loaded = await loadDocument(entry.filePath)
         if (!loaded) return
 
-        if (validateOnOpen) {
+        if (validationFeatureEnabled && validateOnOpen) {
           await validateDocument()
         }
         await recordRecentFile(entry.filePath, 'xml-editor')
@@ -423,6 +433,7 @@ export default function App() {
       setFilePath,
       validateDocument,
       validateOnOpen,
+      validationFeatureEnabled,
     ]
   )
 
@@ -495,7 +506,7 @@ export default function App() {
     const loaded = await loadDocument(path)
     if (!loaded) return
 
-    if (validateOnOpen) {
+    if (validationFeatureEnabled && validateOnOpen) {
       await validateDocument()
     }
     await recordRecentFile(path, 'xml-editor')

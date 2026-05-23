@@ -13,6 +13,7 @@ packages/core/src/schemas-transitional/
 # IDE
 .idea/
 .vscode/
+.omc/
 *.swp
 *.swo
 

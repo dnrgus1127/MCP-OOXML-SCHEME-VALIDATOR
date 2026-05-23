@@ -8,7 +8,8 @@ function buildCurrentState() {
       downloadFolders: [] as string[],
     },
     xmlEditor: {
-      validateOnOpen: true,
+      validationFeatureEnabled: false,
+      validateOnOpen: false,
       revalidateShortcut: 'CmdOrCtrl+Shift+V',
       editorTheme: 'vs-dark' as const,
     },
@@ -44,6 +45,7 @@ describe('mergeSettingsData', () => {
     )
 
     expect(merged.xmlEditor.validateOnOpen).toBe(false)
+    expect(merged.xmlEditor.validationFeatureEnabled).toBe(false)
     expect(merged.xmlEditor.revalidateShortcut).toBe('CmdOrCtrl+R')
     expect(merged.xmlEditor.editorTheme).toBe('vs-dark')
     expect(merged.effectiveEditorTheme).toBe('vs-dark')

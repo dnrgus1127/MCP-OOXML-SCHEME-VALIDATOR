@@ -46,7 +46,7 @@ const SECTIONS: SectionMeta[] = [
     glyph: '⌘',
     desc: '에디터 테마 · 단축키',
     title: 'XML Editor',
-    sub: '에디터 테마와 단축키, 자동 검증 옵션을 설정합니다.',
+    sub: '에디터 테마와 단축키, 개발 중인 검증 옵션을 설정합니다.',
   },
   {
     id: 'batch-validator',
@@ -150,15 +150,18 @@ function Toggle({
   value,
   onChange,
   ariaLabel,
+  disabled = false,
 }: {
   value: boolean
   onChange: (next: boolean) => void
   ariaLabel?: string
+  disabled?: boolean
 }) {
   return (
     <button
       type="button"
       className={`settings-toggle ${value ? 'on' : 'off'}`}
+      disabled={disabled}
       onClick={() => onChange(!value)}
       aria-pressed={value}
       aria-label={ariaLabel}
@@ -211,9 +214,7 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
 
     const normalized = normalizeShortcut(value)
     if (!normalized) {
-      setShortcutError(
-        '유효한 형식이 아닙니다. 예: CmdOrCtrl+Shift+V, CmdOrCtrl+R, Shift+F8'
-      )
+      setShortcutError('유효한 형식이 아닙니다. 예: CmdOrCtrl+Shift+V, CmdOrCtrl+R, Shift+F8')
       return
     }
 
@@ -267,8 +268,7 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
           </h2>
           <p className="settings-sidebar-tagline">
             에디터 테마, 검증 옵션과 확장을
-            <br />
-            한 화면에서 관리하세요.
+            <br />한 화면에서 관리하세요.
           </p>
 
           <nav className="settings-nav">
@@ -381,13 +381,34 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
               {activeSection === 'xml-editor' && (
                 <div className="settings-form">
                   <Row
+                    label="검증 기능 사용"
+                    hint="문서 검증은 아직 개발 중인 Pre 기능입니다. 켜면 XML Editor에 검증 버튼과 결과 패널이 표시됩니다."
+                  >
+                    <div className="settings-control-with-badge">
+                      <span className="settings-pre-badge">Pre</span>
+                      <Toggle
+                        value={xmlEditor.validationFeatureEnabled}
+                        onChange={(next) =>
+                          updateXmlEditorSettings({ validationFeatureEnabled: next })
+                        }
+                        ariaLabel="검증 기능 사용"
+                      />
+                    </div>
+                  </Row>
+
+                  <Row
                     label="파일 오픈 시 즉시 검증"
-                    hint="파일을 열자마자 문서 검증을 자동으로 실행합니다."
+                    hint={
+                      xmlEditor.validationFeatureEnabled
+                        ? '파일을 열자마자 문서 검증을 자동으로 실행합니다.'
+                        : '검증 기능을 켜야 사용할 수 있습니다.'
+                    }
                   >
                     <Toggle
                       value={xmlEditor.validateOnOpen}
                       onChange={(next) => updateXmlEditorSettings({ validateOnOpen: next })}
                       ariaLabel="파일 오픈 시 즉시 검증"
+                      disabled={!xmlEditor.validationFeatureEnabled}
                     />
                   </Row>
 
@@ -451,7 +472,9 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
                                   <span>{theme.label}</span>
                                   <span className="settings-theme-card-family">{theme.family}</span>
                                 </span>
-                                <span className="settings-theme-card-desc">{theme.description}</span>
+                                <span className="settings-theme-card-desc">
+                                  {theme.description}
+                                </span>
                               </span>
                             </button>
                           )
@@ -462,7 +485,11 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
 
                   <Row
                     label="현재 파일 재검증 단축키"
-                    hint="XML Editor 화면에서만 동작합니다. 입력 즉시 유효성 검사를 수행합니다."
+                    hint={
+                      xmlEditor.validationFeatureEnabled
+                        ? 'XML Editor 화면에서만 동작합니다. 입력 즉시 유효성 검사를 수행합니다.'
+                        : '검증 기능을 켜면 XML Editor 화면에서 동작합니다.'
+                    }
                     align="start"
                   >
                     <div className="settings-shortcut-input-wrap">
@@ -475,6 +502,7 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
                         placeholder="CmdOrCtrl+Shift+V"
                         spellCheck={false}
                         autoComplete="off"
+                        disabled={!xmlEditor.validationFeatureEnabled}
                       />
                       {shortcutError && <p className="settings-error-text">{shortcutError}</p>}
                     </div>
@@ -493,7 +521,9 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
                             {item.isCustomizable ? (
                               <p className="settings-shortcut-customizable">설정에서 커스텀 가능</p>
                             ) : (
-                              <p className="settings-shortcut-fixed">현재 버전에서는 기본 단축키만 지원</p>
+                              <p className="settings-shortcut-fixed">
+                                현재 버전에서는 기본 단축키만 지원
+                              </p>
                             )}
                           </div>
                           <code className="settings-shortcut-code">{item.shortcut}</code>

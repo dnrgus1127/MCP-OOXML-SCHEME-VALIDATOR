@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import type { EditorThemeId } from '../constants/editorTheme'
 
 export interface XmlEditorSettings {
+  validationFeatureEnabled: boolean
   validateOnOpen: boolean
   revalidateShortcut: string
   editorTheme: EditorThemeId
@@ -58,7 +59,8 @@ const defaultSettings: SettingsData = {
     downloadFolders: [],
   },
   xmlEditor: {
-    validateOnOpen: true,
+    validationFeatureEnabled: false,
+    validateOnOpen: false,
     revalidateShortcut: 'CmdOrCtrl+Shift+V',
     editorTheme: 'vs-dark',
   },

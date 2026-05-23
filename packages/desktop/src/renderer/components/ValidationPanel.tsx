@@ -87,7 +87,9 @@ export function ValidationPanel({
     return (
       <div className="validation-results">
         <div className="validation-header">
-          <h3>Validation Results</h3>
+          <h3>
+            Validation Results <span className="validation-pre-badge">Pre</span>
+          </h3>
           <button onClick={onRevalidate} className="revalidate-btn">
             Re-validate
           </button>
@@ -106,7 +108,9 @@ export function ValidationPanel({
     return (
       <div className="validation-results">
         <div className="validation-header">
-          <h3>Validation Results</h3>
+          <h3>
+            Validation Results <span className="validation-pre-badge">Pre</span>
+          </h3>
           <button onClick={onRevalidate} className="revalidate-btn">
             Re-validate
           </button>
@@ -118,7 +122,9 @@ export function ValidationPanel({
         <div className="validation-summary warning">
           <span className="status-icon">INFO</span>
           <span className="status-text">Validation unsupported</span>
-          <span className="counts">This document can be viewed and edited, but validation is skipped.</span>
+          <span className="counts">
+            This document can be viewed and edited, but validation is skipped.
+          </span>
         </div>
 
         <div className="validation-empty">
@@ -128,12 +134,16 @@ export function ValidationPanel({
     )
   }
 
-  const validCount = results.summary?.validParts ?? results.results.filter((result) => result.valid).length
+  const validCount =
+    results.summary?.validParts ?? results.results.filter((result) => result.valid).length
   const invalidCount =
     results.summary?.invalidParts ?? results.results.filter((result) => !result.valid).length
   const totalErrors =
     results.summary?.totalErrors ??
-    results.results.reduce((sum, result) => sum + (result.errors?.length || (result.error ? 1 : 0)), 0)
+    results.results.reduce(
+      (sum, result) => sum + (result.errors?.length || (result.error ? 1 : 0)),
+      0
+    )
   const totalWarnings =
     results.summary?.totalWarnings ??
     results.results.reduce((sum, result) => sum + (result.warnings?.length ?? 0), 0)
@@ -159,7 +169,9 @@ export function ValidationPanel({
   return (
     <div className="validation-results">
       <div className="validation-header">
-        <h3>Validation Results</h3>
+        <h3>
+          Validation Results <span className="validation-pre-badge">Pre</span>
+        </h3>
         <button onClick={onRevalidate} className="revalidate-btn">
           Re-validate
         </button>
