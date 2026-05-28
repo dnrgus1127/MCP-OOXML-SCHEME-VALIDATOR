@@ -18,7 +18,7 @@ export function resolveLspServerBinPath(): string {
 
 export function spawnLspServer(options: SpawnLspOptions = {}): ChildProcessWithoutNullStreams {
   const binPath = resolveLspServerBinPath()
-  const args = [binPath]
+  const args = [binPath, '--stdio']
 
   if (options.enableMsValidator === false) args.push('--no-ms-validator')
   if (options.msValidatorBinPath) args.push('--ms-validator-bin', options.msValidatorBinPath)

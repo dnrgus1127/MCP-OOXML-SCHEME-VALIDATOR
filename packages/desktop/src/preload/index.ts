@@ -108,6 +108,7 @@ const api = {
         { success: true; data: T } | { success: false; error: string }
       >,
     notify: (method: string, params?: unknown) => ipcRenderer.invoke('lsp:notify', method, params),
+    log: (message: string) => ipcRenderer.invoke('lsp:log', message),
     onNotification: (
       callback: (message: { method: string; params: unknown }) => void
     ) => {

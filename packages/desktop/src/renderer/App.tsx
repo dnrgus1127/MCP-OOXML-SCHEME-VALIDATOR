@@ -117,6 +117,7 @@ declare global {
           method: string,
           params?: unknown
         ) => Promise<{ success: boolean; error?: string }>
+        log: (message: string) => Promise<{ success: boolean }>
         onNotification: (
           callback: (message: { method: string; params: unknown }) => void
         ) => () => void

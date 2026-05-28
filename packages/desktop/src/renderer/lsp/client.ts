@@ -13,6 +13,20 @@ interface CurrentPackage {
   kind: PackageKind
 }
 
+export function lspLog(line: string, ...extra: unknown[]): void {
+  console.info(line, ...extra)
+  try {
+    const payload = extra.length > 0 ? `${line} ${JSON.stringify(extra).slice(0, 1200)}` : line
+    window.electronAPI?.lsp?.log?.(payload)
+  } catch {
+    /* ignore */
+  }
+}
+
+export function normalizePartPath(partPath: string): string {
+  return partPath.startsWith('/') ? partPath.slice(1) : partPath
+}
+
 function encodeBase64Url(value: string): string {
   if (typeof window === 'undefined' || typeof window.btoa !== 'function') return value
   return window
@@ -29,25 +43,39 @@ class LspClient {
   private lastDiagnostics = new Map<string, Diagnostic[]>()
   private currentPackage: CurrentPackage | null = null
   private updateTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  private packageReadyListeners = new Set<() => void>()
+
+  hasPackage(): boolean {
+    return this.currentPackage !== null
+  }
+
+  onPackageReady(listener: () => void): () => void {
+    this.packageReadyListeners.add(listener)
+    if (this.currentPackage !== null) listener()
+    return () => this.packageReadyListeners.delete(listener)
+  }
 
   isAvailable(): boolean {
     return typeof window !== 'undefined' && window.electronAPI?.lsp !== undefined
   }
 
-  ensureStarted(options: LspStartOptions = { enableMsValidator: false }): Promise<void> {
+  ensureStarted(options: LspStartOptions = { enableMsValidator: true }): Promise<void> {
     if (!this.isAvailable()) return Promise.reject(new Error('LSP bridge is not available'))
     if (this.startPromise) return this.startPromise
 
     this.startPromise = (async () => {
+      lspLog('[lsp] starting child process …')
       const api = window.electronAPI.lsp
       const startResult = await api.start(options)
       if (!startResult.success) {
         this.startPromise = null
+        console.error('[lsp] start failed:', startResult.error)
         throw new Error(startResult.error ?? 'Failed to start LSP server')
       }
       this.notificationCleanup = api.onNotification((message) => this.handleNotification(message))
       await this.request('initialize', { processId: null, rootUri: null, capabilities: {} })
       await this.notify('initialized', {})
+      lspLog('[lsp] initialize complete')
     })()
 
     return this.startPromise
@@ -61,25 +89,37 @@ class LspClient {
     await this.ensureStarted()
     this.currentPackage = { packageId: params.packageId, kind: params.kind }
     this.lastDiagnostics.clear()
-    await this.request('ooxml/packageLoaded', params)
+    for (const listener of this.packageReadyListeners) {
+      try {
+        listener()
+      } catch {
+        /* ignore */
+      }
+    }
+    const normalizedParts = params.parts.map((part) => ({
+      ...part,
+      path: normalizePartPath(part.path),
+    }))
+    await this.request('ooxml/packageLoaded', { ...params, parts: normalizedParts })
   }
 
   schedulePartUpdate(path: string, text: string, delayMs = 200): void {
     if (!this.currentPackage || !this.isAvailable()) return
-    const existing = this.updateTimers.get(path)
+    const normalized = normalizePartPath(path)
+    const existing = this.updateTimers.get(normalized)
     if (existing) clearTimeout(existing)
     const timer = setTimeout(() => {
-      this.updateTimers.delete(path)
-      void this.updatePart(path, text)
+      this.updateTimers.delete(normalized)
+      void this.updatePart(normalized, text)
     }, delayMs)
-    this.updateTimers.set(path, timer)
+    this.updateTimers.set(normalized, timer)
   }
 
   async updatePart(path: string, text: string): Promise<void> {
     if (!this.currentPackage) return
     await this.request('ooxml/partUpdated', {
       packageId: this.currentPackage.packageId,
-      path,
+      path: normalizePartPath(path),
       text,
     })
   }
@@ -88,7 +128,7 @@ class LspClient {
     if (!this.currentPackage) return null
     const { kind, packageId } = this.currentPackage
     const encoded = encodeBase64Url(packageId)
-    return `ooxml-${kind}:/${encoded}/${partPath}`
+    return `ooxml-${kind}:/${encoded}/${normalizePartPath(partPath)}`
   }
 
   onDiagnostics(uri: string, listener: DiagnosticsListener): () => void {
@@ -136,11 +176,15 @@ class LspClient {
   }
 
   private handleNotification(message: { method: string; params: unknown }): void {
+    lspLog(`[lsp] ← ${message.method}`, message.params)
     if (message.method !== 'textDocument/publishDiagnostics') return
     const params = message.params as PublishDiagnosticsParams
     this.lastDiagnostics.set(params.uri, params.diagnostics)
     const listeners = this.diagnosticListeners.get(params.uri)
-    if (!listeners) return
+    if (!listeners) {
+      lspLog(`[lsp] no listener for ${params.uri}`)
+      return
+    }
     for (const listener of listeners) listener(params.diagnostics)
   }
 }

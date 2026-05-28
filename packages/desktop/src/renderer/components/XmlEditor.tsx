@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getEditorThemeLabel, registerEditorThemes } from '../constants/editorTheme'
 import { useSettingsStore } from '../stores/settings'
 import { getActivePlugins, type PluginContext } from '../plugins'
-import { lspClient } from '../lsp/client'
+import { lspClient, lspLog } from '../lsp/client'
 import { diagnosticsToMarkers, LSP_MARKER_OWNER } from '../lsp/markers'
 
 type PluginContextProvider = () => PluginContext | null
@@ -85,7 +85,12 @@ export function XmlEditor({
   const [localContent, setLocalContent] = useState(() => formatXml(content))
   const [isMonacoReady, setIsMonacoReady] = useState(false)
   const [monacoLoadError, setMonacoLoadError] = useState(false)
+  const [hasLspPackage, setHasLspPackage] = useState(() => lspClient.hasPackage())
   const editorTheme = useSettingsStore((state) => state.effectiveEditorTheme)
+
+  useEffect(() => {
+    return lspClient.onPackageReady(() => setHasLspPackage(true))
+  }, [])
 
   useEffect(() => {
     pluginCtxProviderRef.current = getPluginContext
@@ -142,6 +147,8 @@ export function XmlEditor({
           lineHeight: 18,
           tabSize: 2,
           insertSpaces: true,
+          glyphMargin: true,
+          renderValidationDecorations: 'on',
         })
 
         editorRef.current.onDidChangeModelContent(() => {
@@ -219,24 +226,77 @@ export function XmlEditor({
   }, [editorTheme])
 
   useEffect(() => {
-    if (!isMonacoReady || compareMode) return
+    lspLog(
+      `[xml-editor effect] monacoReady=${isMonacoReady} compare=${compareMode} hasPkg=${hasLspPackage} partPath=${partPath}`
+    )
+    if (!isMonacoReady || compareMode || !hasLspPackage) return
     const monaco = monacoRef.current
     const editor = editorRef.current
-    if (!monaco || !editor) return
+    if (!monaco || !editor) {
+      lspLog('[xml-editor effect] monaco/editor ref missing')
+      return
+    }
     const model = editor.getModel?.()
-    if (!model) return
+    if (!model) {
+      lspLog('[xml-editor effect] model missing')
+      return
+    }
     const uri = lspClient.virtualUriFor(partPath)
-    if (!uri) return
+    if (!uri) {
+      lspLog(`[lsp] no virtual URI yet (package not loaded). partPath=${partPath}`)
+      return
+    }
+    lspLog(`[lsp] subscribe diagnostics for ${uri}`)
+
+    const decorations = editor.createDecorationsCollection([])
 
     const cleanup = lspClient.onDiagnostics(uri, (diagnostics) => {
-      monaco.editor.setModelMarkers(model, LSP_MARKER_OWNER, diagnosticsToMarkers(monaco, diagnostics))
+      const markers = diagnosticsToMarkers(monaco, diagnostics)
+      monaco.editor.setModelMarkers(model, LSP_MARKER_OWNER, markers)
+
+      decorations.set(
+        markers.map((m) => {
+          const safeStartLine = Math.max(1, Math.min(m.startLineNumber, model.getLineCount()))
+          const lineMax = model.getLineMaxColumn(safeStartLine)
+          const startCol = Math.max(1, Math.min(m.startColumn, lineMax))
+          const endCol = Math.max(startCol, Math.min(m.endColumn, lineMax))
+          const inlineClass =
+            m.severity >= monaco.MarkerSeverity.Error
+              ? 'ooxml-lsp-error-inline'
+              : 'ooxml-lsp-warning-inline'
+          const glyphClass =
+            m.severity >= monaco.MarkerSeverity.Error
+              ? 'ooxml-lsp-error-glyph'
+              : 'ooxml-lsp-warning-glyph'
+          return {
+            range: new monaco.Range(safeStartLine, startCol, m.endLineNumber, endCol),
+            options: {
+              inlineClassName: inlineClass,
+              glyphMarginClassName: glyphClass,
+              hoverMessage: { value: `**${m.source ?? 'lsp'}** ${m.code ?? ''}\n\n${m.message}` },
+              overviewRuler: {
+                color:
+                  m.severity >= monaco.MarkerSeverity.Error
+                    ? 'rgba(244,71,71,0.9)'
+                    : 'rgba(255,184,0,0.9)',
+                position: monaco.editor.OverviewRulerLane.Right,
+              },
+            },
+          }
+        })
+      )
+
+      lspLog(
+        `[lsp] applying ${markers.length} markers to ${uri} | decorations + setModelMarkers applied`
+      )
     })
 
     return () => {
       cleanup()
+      decorations.clear()
       monaco.editor.setModelMarkers(model, LSP_MARKER_OWNER, [])
     }
-  }, [isMonacoReady, compareMode, partPath])
+  }, [isMonacoReady, compareMode, partPath, hasLspPackage])
 
   useEffect(() => {
     if (compareMode) {

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { lspClient } from '../lsp/client'
+import { lspClient, lspLog } from '../lsp/client'
 import type { PackageKind, PartDescriptor } from '../lsp/types'
 
 interface DocumentData {
@@ -85,9 +85,18 @@ export function isOriginalDocumentPath(
 function mapDocumentTypeToLspKind(documentType: string | undefined): PackageKind | null {
   if (!documentType) return null
   const value = documentType.toLowerCase()
-  if (value === 'xlsx' || value.includes('spreadsheet') || value.includes('sml')) return 'xlsx'
-  if (value === 'docx' || value.includes('wordprocess') || value.includes('wml')) return 'docx'
-  if (value === 'pptx' || value.includes('presentation') || value.includes('pml')) return 'pptx'
+  if (value === 'xlsx' || value === 'spreadsheet' || value.includes('spreadsheet') || value.includes('sml'))
+    return 'xlsx'
+  if (
+    value === 'docx' ||
+    value === 'document' ||
+    value === 'wordprocessing' ||
+    value.includes('wordprocess') ||
+    value.includes('wml')
+  )
+    return 'docx'
+  if (value === 'pptx' || value === 'presentation' || value.includes('presentation') || value.includes('pml'))
+    return 'pptx'
   return null
 }
 
@@ -102,9 +111,15 @@ async function loadCurrentDocumentToLsp(
   fileData: string,
   documentData: DocumentData
 ): Promise<void> {
-  if (!lspClient.isAvailable()) return
+  if (!lspClient.isAvailable()) {
+    console.warn('[lsp] bridge not available on window.electronAPI')
+    return
+  }
   const kind = mapDocumentTypeToLspKind(documentData.documentType)
-  if (!kind) return
+  if (!kind) {
+    console.warn('[lsp] skip packageLoaded — unsupported documentType:', documentData.documentType)
+    return
+  }
 
   const xmlEntries = Object.entries(documentData.parts).filter(([partPath, info]) =>
     isXmlPart(partPath, info?.contentType)
@@ -114,14 +129,24 @@ async function loadCurrentDocumentToLsp(
   for (const [partPath, info] of xmlEntries) {
     const result = await window.electronAPI.getPart(fileData, partPath, filePath)
     if (result.success && typeof result.data === 'string') {
-      parts.push({ path: partPath, contentType: info.contentType, text: result.data })
+      parts.push({
+        path: partPath,
+        contentType: info?.contentType ?? 'application/xml',
+        text: result.data,
+      })
+    } else {
+      lspLog(`[lsp] getPart failed → ${partPath}: ${result.error ?? 'no data'}`)
     }
   }
 
+  lspLog(`[lsp] packageLoaded → kind=${kind} parts=${parts.length}`)
+  for (const p of parts) {
+    lspLog(`[lsp]   • ${p.path} (ct=${p.contentType}, text.length=${(p.text ?? '').length})`)
+  }
   try {
     await lspClient.loadPackage({ packageId: `file://${filePath}`, kind, parts })
   } catch (error) {
-    console.warn('Failed to push package to LSP:', error)
+    console.warn('[lsp] Failed to push package to LSP:', error)
   }
 }
 
