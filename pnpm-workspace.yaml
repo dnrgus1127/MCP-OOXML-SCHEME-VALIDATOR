@@ -1,3 +1,6 @@
 packages:
   - 'packages/*'
+  - '!packages/ooxml-lsp'
+  - 'packages/ooxml-lsp/packages/*'
+  - '!packages/ooxml-lsp/packages/vscode-extension'
   - 'tools/*'

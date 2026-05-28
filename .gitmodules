@@ -1,0 +1,3 @@
+[submodule "packages/ooxml-lsp"]
+	path = packages/ooxml-lsp
+	url = https://github.com/dnrgus1127/ooxml-lsp.git

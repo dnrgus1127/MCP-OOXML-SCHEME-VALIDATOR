@@ -17,6 +17,7 @@
     "clean": "rm -rf dist release"
   },
   "dependencies": {
+    "@ooxml-tools/lsp-server": "workspace:*",
     "@ooxml/core": "workspace:*",
     "@ooxml/parser": "workspace:*",
     "@tanstack/react-query": "^5.0.0",
