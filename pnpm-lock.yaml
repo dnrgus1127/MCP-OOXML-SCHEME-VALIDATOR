@@ -150,6 +150,12 @@ importers:
       '@ooxml-tools/sdk':
         specifier: workspace:*
         version: link:../sdk
+      '@ooxml/core':
+        specifier: workspace:*
+        version: link:../../../core
+      '@ooxml/parser':
+        specifier: workspace:*
+        version: link:../../../parser
       vscode-languageserver:
         specifier: ^9.0.1
         version: 9.0.1

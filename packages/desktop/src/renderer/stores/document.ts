@@ -121,21 +121,24 @@ async function loadCurrentDocumentToLsp(
     return
   }
 
-  const xmlEntries = Object.entries(documentData.parts).filter(([partPath, info]) =>
-    isXmlPart(partPath, info?.contentType)
-  )
-
+  // Send every part the package declares — ms-validator rejects the whole
+  // package if [Content_Types].xml references a part that isn't present in
+  // the zip it receives (e.g. /docProps/thumbnail.jpeg). For binary parts
+  // we send the descriptor with no text; the LSP packs an empty placeholder
+  // so the part exists at the expected path.
   const parts: PartDescriptor[] = []
-  for (const [partPath, info] of xmlEntries) {
-    const result = await window.electronAPI.getPart(fileData, partPath, filePath)
-    if (result.success && typeof result.data === 'string') {
-      parts.push({
-        path: partPath,
-        contentType: info?.contentType ?? 'application/xml',
-        text: result.data,
-      })
+  for (const [partPath, info] of Object.entries(documentData.parts)) {
+    const contentType = info?.contentType ?? 'application/octet-stream'
+    if (isXmlPart(partPath, info?.contentType)) {
+      const result = await window.electronAPI.getPart(fileData, partPath, filePath)
+      if (result.success && typeof result.data === 'string') {
+        parts.push({ path: partPath, contentType, text: result.data })
+      } else {
+        lspLog(`[lsp] getPart failed → ${partPath}: ${result.error ?? 'no data'}`)
+        parts.push({ path: partPath, contentType })
+      }
     } else {
-      lspLog(`[lsp] getPart failed → ${partPath}: ${result.error ?? 'no data'}`)
+      parts.push({ path: partPath, contentType })
     }
   }
 
