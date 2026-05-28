@@ -36,6 +36,7 @@ import {
   listRecentFiles,
   removeRecentFile,
 } from './recent-files-store'
+import { getLspBridge, registerLspIpc } from './lsp/bridge'
 import type { OpenTool } from '../shared/recent-files'
 
 let mainWindow: BrowserWindow | null = null
@@ -1035,6 +1036,7 @@ app.whenReady().then(() => {
   createMenu()
   createWindow()
   setupIpcHandlers()
+  registerLspIpc()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -1044,7 +1046,12 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  getLspBridge().stop()
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  getLspBridge().stop()
 })
