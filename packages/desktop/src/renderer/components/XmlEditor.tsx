@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { getEditorThemeLabel, registerEditorThemes } from '../constants/editorTheme'
 import { useSettingsStore } from '../stores/settings'
 import { getActivePlugins, type PluginContext } from '../plugins'
+import { lspClient } from '../lsp/client'
+import { diagnosticsToMarkers, LSP_MARKER_OWNER } from '../lsp/markers'
 
 type PluginContextProvider = () => PluginContext | null
 
@@ -215,6 +217,26 @@ export function XmlEditor({
     if (!monacoRef.current) return
     monacoRef.current.editor.setTheme(editorTheme)
   }, [editorTheme])
+
+  useEffect(() => {
+    if (!isMonacoReady || compareMode) return
+    const monaco = monacoRef.current
+    const editor = editorRef.current
+    if (!monaco || !editor) return
+    const model = editor.getModel?.()
+    if (!model) return
+    const uri = lspClient.virtualUriFor(partPath)
+    if (!uri) return
+
+    const cleanup = lspClient.onDiagnostics(uri, (diagnostics) => {
+      monaco.editor.setModelMarkers(model, LSP_MARKER_OWNER, diagnosticsToMarkers(monaco, diagnostics))
+    })
+
+    return () => {
+      cleanup()
+      monaco.editor.setModelMarkers(model, LSP_MARKER_OWNER, [])
+    }
+  }, [isMonacoReady, compareMode, partPath])
 
   useEffect(() => {
     if (compareMode) {
