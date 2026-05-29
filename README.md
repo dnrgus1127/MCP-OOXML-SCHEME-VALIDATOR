@@ -14,13 +14,16 @@ OOXML(.xlsx / .docx / .pptx)과 ODF(.ods / .odt / .odp) 문서를 열어 내부 
 
 ## 데스크톱 앱 빌드 (Windows exe)
 
-`packages/desktop`는 Electron 앱이며, `electron-builder` 로 Windows 설치 파일(.exe)과 portable 실행 파일을 만들 수 있습니다.
+`packages/desktop`는 Electron 앱이며, `electron-builder` 로 Windows 실행 파일을 만들 수 있습니다.
+이 브랜치(`feature/ooxml-lsp-integration`)는 OOXML LSP 서버(`@ooxml-tools/lsp-server`)를 자식 프로세스로 실행해 Monaco 에디터에 diagnostics를 표시하므로, 빌드 시 **LSP 서버 번들과 그 의존성**까지 패키징에 포함되어야 합니다.
 
 ### 사전 요구사항
 
 - Node.js 18 이상
 - pnpm 9 (없으면 아래 절차로 설치)
+- Git (LSP 서버는 `packages/ooxml-lsp` **git submodule** 로 관리됨)
 - Windows 환경 (다른 OS에서 win 타겟 빌드 시 wine 등 별도 설정 필요)
+- (선택) .NET SDK — MS Open XML SDK 기반 **심층 검증**까지 사용하려는 경우에만 필요. 아래 "알려진 제약" 참고
 
 #### pnpm 설치
 
@@ -47,26 +50,68 @@ pnpm -v
 ### 빌드 절차
 
 ```bash
-# 1. 의존성 설치 (모노레포 루트)
+# 1. LSP 서버 submodule 체크아웃 (필수)
+#    체크아웃하지 않으면 @ooxml-tools/lsp-server 가 없어 LSP 가 동작하지 않습니다.
+git submodule update --init --recursive
+
+# 2. 의존성 설치 (모노레포 루트)
+#    desktop 의 dependencies 에 vscode-languageserver 계열이 포함되어 있어야
+#    패키징 시 LSP 런타임 의존성이 누락되지 않습니다.
 pnpm install
 
-# 2. core / parser / desktop 빌드 산출물 준비
+# 3. 루트 워크스페이스 패키지 빌드 (core / parser / desktop 등)
 pnpm run build
 
-# 3. desktop 패키지에서 Windows 타겟 패키징
-pnpm --filter @ooxml/desktop run package:win
+# 4. LSP 서버(+의존성) 빌드
+#    turbo(pnpm run build) 는 submodule(@ooxml-tools/*) 패키지를 빌드 대상에 포함하지 않으므로
+#    아래 filter 빌드를 반드시 별도로 실행해 dist/bin.js 를 생성해야 합니다.
+pnpm --filter "@ooxml-tools/lsp-server..." run build
+
+# 5. LSP 서버 번들(dist/bin.js) 을 createRequire 배너와 함께 다시 번들 (필수)
+#    submodule 의 원본 build 스크립트는 ESM 번들에서 동적 require 가 막혀 런타임 로드에 실패합니다.
+#    아래 스크립트가 banner 를 주입해 bin.js 를 다시 생성합니다. (자세한 내용은 "알려진 제약" 참고)
+node tools/build-lsp-bin.mjs
+
+# 6. Windows 패키징 (win-unpacked 폴더형 실행 파일)
+pnpm --filter @ooxml/desktop exec electron-builder --win --dir --config electron-builder.yml
 ```
 
 ### 산출물
 
-`packages/desktop/release/` 아래에 다음이 생성됩니다 (`electron-builder.yml` 기준).
+`packages/desktop/release/win-unpacked/` 아래에 폴더형 실행 파일이 생성됩니다.
 
-- `OOXML Validator Setup <version>.exe` — NSIS 인스톨러 (설치 경로 변경 가능)
-- `OOXML Validator <version>.exe` — portable 실행 파일 (설치 없이 실행)
+- `OOXML Validator.exe` — 실행 파일 (폴더 전체를 함께 배포해야 동작)
+
+폴더 전체(`win-unpacked/`)를 압축해 배포하고, 대상 PC에서 압축 해제 후 `OOXML Validator.exe` 를 실행합니다.
+
+### 빌드가 올바른지 검증 (LSP 기동 확인)
+
+패키징된 LSP 서버 번들이 앱과 동일한 방식(`ELECTRON_RUN_AS_NODE`)으로 정상 기동하는지 확인할 수 있습니다.
+
+```bash
+# app.asar 내부 의존성(vscode-languageserver 계열) 포함 여부 확인
+npx asar list "packages/desktop/release/win-unpacked/resources/app.asar" | grep vscode-languageserver
+
+# LSP 서버 번들이 실제로 로드되어 initialize 에 응답하는지 확인
+# (정상이면 capabilities 가 포함된 JSON-RPC 응답이 출력됨)
+```
+
+### 알려진 제약 / 주의사항
+
+- **NSIS 인스톨러 / portable 단일 exe 는 현재 이 경로에서 빌드 실패함**
+  - `electron-builder.yml` 은 `nsis` + `portable` 타겟을 정의하지만, 두 타겟 모두 `makensis` 를 사용합니다.
+  - 번들된 `makensis 3.0.4.1` 은 긴 경로(long path)를 지원하지 않는데, pnpm 의 깊은 `.pnpm` 가상 스토어 경로 + 긴 프로젝트 루트 경로가 합쳐져 Windows `MAX_PATH(260자)` 를 초과합니다(`could not open file: ...StdUtils.nsh`).
+  - 단일 exe/인스톨러가 필요하면: pnpm `virtual-store-dir` 를 짧은 경로로 재배치하거나 `node-linker=hoisted` 로 재설치하는 우회가 필요합니다. 폴더형(win-unpacked)은 `makensis` 를 사용하지 않으므로 영향을 받지 않습니다.
+- **LSP 서버 번들의 `createRequire` 배너 (빌드 step 5)**
+  - `@ooxml-tools/lsp-server` 의 `dist/bin.js` 는 esbuild `--format=esm` 으로 번들됩니다. `adm-zip` 등 CommonJS 의존성이 런타임에 `require('fs')` 를 호출하는데, ESM 출력에서는 동적 `require` 가 막혀(`Dynamic require of "fs" is not supported`) 번들이 로드되지 않습니다.
+  - submodule(`packages/ooxml-lsp`) 은 고정 커밋(pinned SHA)으로 체크아웃되므로 submodule build 스크립트를 직접 고쳐도 재체크아웃 시 사라집니다. 따라서 메인 저장소의 `tools/build-lsp-bin.mjs` 가 `createRequire` 배너를 주입해 `dist/bin.js` 를 다시 번들합니다(빌드 step 5). submodule build 직후 반드시 실행해야 하며, 근본적으로는 `ooxml-lsp` 저장소의 lsp-server build 스크립트에 banner 가 반영(upstream)되어야 합니다.
+- **MS Open XML SDK 심층 검증(deep validation) 은 기본 빌드에 포함되지 않음**
+  - 심층 검증은 `@ooxml-tools/ms-validator-bin` 의 네이티브 .NET sidecar(`ooxml-msvalidator.exe`)가 필요하지만, 해당 바이너리는 저장소에 커밋되어 있지 않고 `dotnet publish` 로 별도 빌드해야 합니다.
+  - 바이너리가 없으면 LSP 서버는 심층 검증을 자동으로 비활성화하고 **XSD 스키마 기반 검증만** 수행합니다(앱은 정상 동작). 심층 검증까지 쓰려면 .NET SDK 설치 후 `pnpm --filter @ooxml-tools/ms-validator-bin run build:win-x64` 로 sidecar 를 빌드해야 합니다.
 
 ### 참고 스크립트
 
-- `pnpm --filter @ooxml/desktop run package` — 현재 OS 기본 타겟
+- `pnpm --filter @ooxml/desktop run package` — 현재 OS 기본 타겟(인스톨러; 위 NSIS 제약 적용)
 - `pnpm --filter @ooxml/desktop run package:mac` — macOS dmg/zip
 - `pnpm --filter @ooxml/desktop run package:linux` — Linux AppImage/deb
 
