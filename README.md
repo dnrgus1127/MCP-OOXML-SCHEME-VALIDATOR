@@ -136,3 +136,4 @@ MCP 통합은 후순위로 계획되어 있습니다.
 - MCP 통합 시나리오: `docs/mcp-integration.md`
 - Electron/MCP 환경설정: `docs/electron-mcp-setup.md`
 - 검증 엔진 교체 계획: `docs/lsp-validation-engine-replacement-plan.md`
+- LSP/Monaco 연동 흐름: `docs/lsp-monaco-integration-flow.md`
