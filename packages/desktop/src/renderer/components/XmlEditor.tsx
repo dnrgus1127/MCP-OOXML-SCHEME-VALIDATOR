@@ -87,6 +87,7 @@ export function XmlEditor({
   const [monacoLoadError, setMonacoLoadError] = useState(false)
   const [hasLspPackage, setHasLspPackage] = useState(() => lspClient.hasPackage())
   const editorTheme = useSettingsStore((state) => state.effectiveEditorTheme)
+  const lspMarkersEnabled = useSettingsStore((state) => state.xmlEditor.lspMarkersEnabled)
 
   useEffect(() => {
     return lspClient.onPackageReady(() => setHasLspPackage(true))
@@ -227,9 +228,9 @@ export function XmlEditor({
 
   useEffect(() => {
     lspLog(
-      `[xml-editor effect] monacoReady=${isMonacoReady} compare=${compareMode} hasPkg=${hasLspPackage} partPath=${partPath}`
+      `[xml-editor effect] monacoReady=${isMonacoReady} compare=${compareMode} hasPkg=${hasLspPackage} lspMarkers=${lspMarkersEnabled} partPath=${partPath}`
     )
-    if (!isMonacoReady || compareMode || !hasLspPackage) return
+    if (!isMonacoReady || compareMode || !hasLspPackage || !lspMarkersEnabled) return
     const monaco = monacoRef.current
     const editor = editorRef.current
     if (!monaco || !editor) {
@@ -296,7 +297,7 @@ export function XmlEditor({
       decorations.clear()
       monaco.editor.setModelMarkers(model, LSP_MARKER_OWNER, [])
     }
-  }, [isMonacoReady, compareMode, partPath, hasLspPackage])
+  }, [isMonacoReady, compareMode, partPath, hasLspPackage, lspMarkersEnabled])
 
   useEffect(() => {
     if (compareMode) {

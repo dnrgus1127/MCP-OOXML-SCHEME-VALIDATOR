@@ -10,6 +10,7 @@ function buildCurrentState() {
     xmlEditor: {
       validationFeatureEnabled: false,
       validateOnOpen: false,
+      lspMarkersEnabled: true,
       revalidateShortcut: 'CmdOrCtrl+Shift+V',
       editorTheme: 'vs-dark' as const,
     },
@@ -46,9 +47,23 @@ describe('mergeSettingsData', () => {
 
     expect(merged.xmlEditor.validateOnOpen).toBe(false)
     expect(merged.xmlEditor.validationFeatureEnabled).toBe(false)
+    expect(merged.xmlEditor.lspMarkersEnabled).toBe(true)
     expect(merged.xmlEditor.revalidateShortcut).toBe('CmdOrCtrl+R')
     expect(merged.xmlEditor.editorTheme).toBe('vs-dark')
     expect(merged.effectiveEditorTheme).toBe('vs-dark')
+  })
+
+  it('respects a persisted lspMarkersEnabled=false over the default', () => {
+    const merged = mergeSettingsData(
+      {
+        xmlEditor: {
+          lspMarkersEnabled: false,
+        },
+      },
+      buildCurrentState()
+    )
+
+    expect(merged.xmlEditor.lspMarkersEnabled).toBe(false)
   })
 
   it('migrates legacy downloadFolder string into downloadFolders array', () => {
