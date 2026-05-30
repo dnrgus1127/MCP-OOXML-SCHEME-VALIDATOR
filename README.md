@@ -47,7 +47,7 @@ iwr https://get.pnpm.io/install.ps1 -useb | iex
 pnpm -v
 ```
 
-### 빌드 절차
+### 공통 빌드 절차
 
 ```bash
 # 1. LSP 서버 submodule 체크아웃 (필수)
@@ -71,8 +71,34 @@ pnpm --filter "@ooxml-tools/lsp-server..." run build
 #    submodule 의 원본 build 스크립트는 ESM 번들에서 동적 require 가 막혀 런타임 로드에 실패합니다.
 #    아래 스크립트가 banner 를 주입해 bin.js 를 다시 생성합니다. (자세한 내용은 "알려진 제약" 참고)
 node tools/build-lsp-bin.mjs
+```
 
-# 6. Windows 패키징 (win-unpacked 폴더형 실행 파일)
+이후 필요한 검증 수준에 따라 아래 두 시나리오 중 하나를 선택합니다.
+
+### 시나리오 A: MS Validator 없이 빌드 (XSD 스키마 검증만 사용)
+
+.NET SDK 없이 데스크톱 앱을 빌드할 수 있습니다. `ooxml-msvalidator.exe` 를 생성하지 않으면 LSP 서버가 MS Open XML SDK 기반 심층 검증을 자동으로 비활성화하고 XSD 스키마 기반 diagnostics만 제공합니다. 이전 빌드에서 생성한 `packages/ooxml-lsp/packages/ms-validator-bin/win-x64/` 산출물이 남아 있다면 제거한 뒤 패키징합니다.
+
+```bash
+# 6. sidecar 바이너리가 없는지 확인
+test ! -f packages/ooxml-lsp/packages/ms-validator-bin/win-x64/ooxml-msvalidator.exe
+
+# 7. Windows 패키징 (win-unpacked 폴더형 실행 파일)
+pnpm --filter @ooxml/desktop exec electron-builder --win --dir --config electron-builder.yml
+```
+
+### 시나리오 B: MS Validator 포함 빌드 (심층 검증 사용)
+
+.NET SDK가 설치된 Windows x64 환경에서 sidecar를 먼저 빌드한 뒤 데스크톱 앱을 패키징합니다. 생성된 `ooxml-msvalidator.exe` 는 `@ooxml-tools/ms-validator-bin` 워크스페이스 패키지를 통해 앱에 포함되며, LSP 서버가 실행 시 자동 탐색합니다.
+
+```bash
+# 6. MS Open XML SDK 기반 .NET sidecar 빌드
+pnpm --filter @ooxml-tools/ms-validator-bin run build:win-x64
+
+# 7. sidecar 생성 확인
+test -f packages/ooxml-lsp/packages/ms-validator-bin/win-x64/ooxml-msvalidator.exe
+
+# 8. Windows 패키징 (win-unpacked 폴더형 실행 파일)
 pnpm --filter @ooxml/desktop exec electron-builder --win --dir --config electron-builder.yml
 ```
 
@@ -92,6 +118,9 @@ pnpm --filter @ooxml/desktop exec electron-builder --win --dir --config electron
 # app.asar 내부 의존성(vscode-languageserver 계열) 포함 여부 확인
 npx asar list "packages/desktop/release/win-unpacked/resources/app.asar" | grep vscode-languageserver
 
+# MS Validator 포함 빌드인 경우 sidecar 포함 여부 확인
+npx asar list "packages/desktop/release/win-unpacked/resources/app.asar" | grep ooxml-msvalidator.exe
+
 # LSP 서버 번들이 실제로 로드되어 initialize 에 응답하는지 확인
 # (정상이면 capabilities 가 포함된 JSON-RPC 응답이 출력됨)
 ```
@@ -107,7 +136,7 @@ npx asar list "packages/desktop/release/win-unpacked/resources/app.asar" | grep 
   - submodule(`packages/ooxml-lsp`) 은 고정 커밋(pinned SHA)으로 체크아웃되므로 submodule build 스크립트를 직접 고쳐도 재체크아웃 시 사라집니다. 따라서 메인 저장소의 `tools/build-lsp-bin.mjs` 가 `createRequire` 배너를 주입해 `dist/bin.js` 를 다시 번들합니다(빌드 step 5). submodule build 직후 반드시 실행해야 하며, 근본적으로는 `ooxml-lsp` 저장소의 lsp-server build 스크립트에 banner 가 반영(upstream)되어야 합니다.
 - **MS Open XML SDK 심층 검증(deep validation) 은 기본 빌드에 포함되지 않음**
   - 심층 검증은 `@ooxml-tools/ms-validator-bin` 의 네이티브 .NET sidecar(`ooxml-msvalidator.exe`)가 필요하지만, 해당 바이너리는 저장소에 커밋되어 있지 않고 `dotnet publish` 로 별도 빌드해야 합니다.
-  - 바이너리가 없으면 LSP 서버는 심층 검증을 자동으로 비활성화하고 **XSD 스키마 기반 검증만** 수행합니다(앱은 정상 동작). 심층 검증까지 쓰려면 .NET SDK 설치 후 `pnpm --filter @ooxml-tools/ms-validator-bin run build:win-x64` 로 sidecar 를 빌드해야 합니다.
+  - 바이너리가 없으면 LSP 서버는 심층 검증을 자동으로 비활성화하고 **XSD 스키마 기반 검증만** 수행합니다(앱은 정상 동작). 심층 검증까지 쓰려면 위 "시나리오 B"처럼 .NET SDK 설치 후 sidecar를 먼저 빌드해야 합니다.
 
 ### 참고 스크립트
 
