@@ -489,6 +489,38 @@ body {
   inset: 0;
 }
 
+/* ─── ooxml-lsp diagnostic decorations ───────────────────────────────── */
+.ooxml-lsp-error-inline {
+  text-decoration: underline wavy #f44747;
+  text-decoration-skip-ink: none;
+}
+.ooxml-lsp-warning-inline {
+  text-decoration: underline wavy #d29922;
+  text-decoration-skip-ink: none;
+}
+.ooxml-lsp-error-glyph::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: #f44747;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+.ooxml-lsp-warning-glyph::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: #d29922;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
 .editor-body.monaco-mode .editor-content {
   background: var(--editor-surface);
 }

@@ -79,6 +79,10 @@ export type OoxmlDocumentType = 'spreadsheet' | 'document' | 'presentation' | 'u
 
 export { normalizeNamespace }
 
+function isSchema(schema: XsdSchema | undefined): schema is XsdSchema {
+  return schema !== undefined
+}
+
 /**
  * All available schemas
  */
@@ -144,7 +148,7 @@ const ALL_SCHEMAS: XsdSchema[] = [
   vmlPresentationDrawingTransitionalSchema,
   vmlSpreadsheetDrawingTransitionalSchema,
   vmlWordprocessingDrawingTransitionalSchema,
-]
+].filter(isSchema)
 
 /**
  * Shared schemas that are common to all document types
@@ -168,7 +172,7 @@ const SHARED_SCHEMAS: XsdSchema[] = [
   sharedAdditionalCharacteristicsSchema,
   sharedCustomXmlDataPropertiesSchema,
   sharedCustomXmlSchemaPropertiesSchema,
-]
+].filter(isSchema)
 
 const TRANSITIONAL_SHARED_SCHEMAS: XsdSchema[] = [
   sharedCommonSimpleTypesTransitionalSchema,

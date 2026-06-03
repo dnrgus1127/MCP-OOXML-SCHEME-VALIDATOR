@@ -413,6 +413,17 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
                   </Row>
 
                   <Row
+                    label="LSP 마커 표시"
+                    hint="LSP 서버가 보고한 오류·경고를 에디터 본문에 밑줄·글리프로 표시합니다. '검증 기능 사용'과 독립적으로 동작하며, 끄면 검증 결과 패널과 무관하게 에디터 마커만 사라집니다."
+                  >
+                    <Toggle
+                      value={xmlEditor.lspMarkersEnabled}
+                      onChange={(next) => updateXmlEditorSettings({ lspMarkersEnabled: next })}
+                      ariaLabel="LSP 마커 표시"
+                    />
+                  </Row>
+
+                  <Row
                     label="에디터 테마"
                     hint="Monaco Editor가 제공하는 모든 테마를 선택할 수 있습니다. 항목에 마우스를 올리면 즉시 미리보기됩니다."
                     align="start"

@@ -93,6 +93,33 @@ const api = {
     ipcRenderer.on('menu:quick-open', listener)
     return () => ipcRenderer.removeListener('menu:quick-open', listener)
   },
+
+  // LSP bridge (ooxml-lsp via main-process child)
+  lsp: {
+    start: (options?: {
+      enableMsValidator?: boolean
+      msValidatorBinPath?: string
+      deepValidate?: 'on-change' | 'on-save' | 'manual'
+      fileFormatVersion?: string
+    }) => ipcRenderer.invoke('lsp:start', options ?? {}),
+    stop: () => ipcRenderer.invoke('lsp:stop'),
+    request: <T = unknown>(method: string, params?: unknown) =>
+      ipcRenderer.invoke('lsp:request', method, params) as Promise<
+        { success: true; data: T } | { success: false; error: string }
+      >,
+    notify: (method: string, params?: unknown) => ipcRenderer.invoke('lsp:notify', method, params),
+    log: (message: string) => ipcRenderer.invoke('lsp:log', message),
+    onNotification: (
+      callback: (message: { method: string; params: unknown }) => void
+    ) => {
+      const listener = (
+        _: Electron.IpcRendererEvent,
+        message: { method: string; params: unknown }
+      ) => callback(message)
+      ipcRenderer.on('lsp:notification', listener)
+      return () => ipcRenderer.removeListener('lsp:notification', listener)
+    },
+  },
 }
 
 // Expose API to renderer

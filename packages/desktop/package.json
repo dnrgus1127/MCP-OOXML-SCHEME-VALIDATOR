@@ -5,7 +5,8 @@
   "description": "OOXML Validator desktop application with XML editor",
   "main": "./dist/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev -- --inspect-brk=5858",
+    "dev": "electron-vite dev",
+    "dev:debug": "electron-vite dev -- --inspect-brk=5858",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "package": "electron-builder --config electron-builder.yml",
@@ -17,11 +18,17 @@
     "clean": "rm -rf dist release"
   },
   "dependencies": {
+    "@ooxml-tools/lsp-server": "workspace:*",
     "@ooxml/core": "workspace:*",
     "@ooxml/parser": "workspace:*",
     "@tanstack/react-query": "^5.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "vscode-jsonrpc": "^8.2.0",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-protocol": "^3.17.5",
+    "vscode-languageserver-textdocument": "^1.0.11",
+    "vscode-languageserver-types": "^3.17.5",
     "zustand": "^4.4.0"
   },
   "optionalDependencies": {

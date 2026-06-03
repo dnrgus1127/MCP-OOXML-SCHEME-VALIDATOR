@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="920" viewBox="0 0 1500 920" role="img" aria-labelledby="title desc">
+  <title id="title">OOXML LSP와 Monaco Editor 연동 흐름</title>
+  <desc id="desc">문서 로드, LSP 서버 시작, 패키지 전달, 편집 변경, diagnostics 수신, Monaco marker 표시까지의 흐름도</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#334155"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-20%" width="120%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#0f172a" flood-opacity="0.14"/>
+    </filter>
+    <style>
+      .bg { fill: #f8fafc; }
+      .lane { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.4; rx: 18; filter: url(#shadow); }
+      .lane-title { font: 700 20px "Segoe UI", "Malgun Gothic", Arial, sans-serif; fill: #0f172a; }
+      .box { fill: #f1f5f9; stroke: #94a3b8; stroke-width: 1.2; rx: 12; }
+      .box-main { fill: #e0f2fe; stroke: #0284c7; }
+      .box-renderer { fill: #ecfdf5; stroke: #059669; }
+      .box-server { fill: #fef3c7; stroke: #d97706; }
+      .box-output { fill: #fee2e2; stroke: #dc2626; }
+      .box-title { font: 700 16px "Segoe UI", "Malgun Gothic", Arial, sans-serif; fill: #0f172a; }
+      .box-text { font: 13px "Segoe UI", "Malgun Gothic", Arial, sans-serif; fill: #334155; }
+      .small { font: 12px "Segoe UI", "Malgun Gothic", Arial, sans-serif; fill: #475569; }
+      .step { font: 700 12px "Segoe UI", Arial, sans-serif; fill: #ffffff; }
+      .badge { fill: #334155; }
+      .arrow { fill: none; stroke: #334155; stroke-width: 2; marker-end: url(#arrow); }
+      .arrow-soft { fill: none; stroke: #64748b; stroke-width: 1.7; stroke-dasharray: 6 6; marker-end: url(#arrow); }
+      .note { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1; rx: 10; }
+      .note-title { font: 700 14px "Segoe UI", "Malgun Gothic", Arial, sans-serif; fill: #0f172a; }
+      .note-text { font: 12px "Segoe UI", "Malgun Gothic", Arial, sans-serif; fill: #475569; }
+    </style>
+  </defs>
+  <rect class="bg" width="1500" height="920"/>
+  <text x="56" y="50" class="lane-title">OOXML LSP 패키지와 Monaco Editor 연동 흐름</text>
+  <text x="56" y="75" class="small">Renderer → IPC bridge → @ooxml-tools/lsp-server → publishDiagnostics → Monaco marker</text>
+
+  <rect x="40" y="110" width="430" height="660" class="lane"/>
+  <text x="75" y="145" class="lane-title">Renderer</text>
+  <text x="75" y="168" class="small">React, Zustand, Monaco</text>
+
+  <rect x="535" y="110" width="430" height="660" class="lane"/>
+  <text x="570" y="145" class="lane-title">Electron Main</text>
+  <text x="570" y="168" class="small">IPC, child process, JSON-RPC bridge</text>
+
+  <rect x="1030" y="110" width="430" height="660" class="lane"/>
+  <text x="1065" y="145" class="lane-title">OOXML LSP Server</text>
+  <text x="1065" y="168" class="small">@ooxml-tools/lsp-server, stdio</text>
+
+  <rect x="90" y="205" width="330" height="92" class="box box-renderer"/>
+  <circle cx="115" cy="229" r="13" class="badge"/><text x="111" y="234" class="step">1</text>
+  <text x="138" y="231" class="box-title">문서 로드</text>
+  <text x="138" y="255" class="box-text">파일을 읽고 패키지 구조를 분석</text>
+  <text x="138" y="276" class="box-text">검증 대상 part 정보를 준비</text>
+
+  <rect x="90" y="345" width="330" height="112" class="box box-renderer"/>
+  <circle cx="115" cy="369" r="13" class="badge"/><text x="111" y="374" class="step">2</text>
+  <text x="138" y="371" class="box-title">LSP 패키지 구성</text>
+  <text x="138" y="395" class="box-text">XML part 텍스트를 함께 수집</text>
+  <text x="138" y="416" class="box-text">비 XML part는 메타데이터만 유지</text>
+  <text x="138" y="437" class="box-text">문서 종류를 LSP 입력 형식으로 정리</text>
+
+  <rect x="585" y="205" width="330" height="92" class="box box-main"/>
+  <circle cx="610" cy="229" r="13" class="badge"/><text x="606" y="234" class="step">3</text>
+  <text x="633" y="231" class="box-title">LSP bridge 시작</text>
+  <text x="633" y="255" class="box-text">renderer 요청으로 bridge를 준비</text>
+  <text x="633" y="276" class="box-text">진단 이벤트 수신 경로를 연결</text>
+
+  <rect x="585" y="345" width="330" height="112" class="box box-main"/>
+  <circle cx="610" cy="369" r="13" class="badge"/><text x="606" y="374" class="step">4</text>
+  <text x="633" y="371" class="box-title">서버 프로세스 실행</text>
+  <text x="633" y="395" class="box-text">@ooxml-tools/lsp-server 실행</text>
+  <text x="633" y="416" class="box-text">stdio 기반 통신 채널 생성</text>
+  <text x="633" y="437" class="box-text">JSON-RPC 메시지를 중계</text>
+
+  <rect x="1080" y="205" width="330" height="92" class="box box-server"/>
+  <circle cx="1105" cy="229" r="13" class="badge"/><text x="1101" y="234" class="step">5</text>
+  <text x="1128" y="231" class="box-title">LSP 초기화</text>
+  <text x="1128" y="255" class="box-text">LSP 세션을 초기화</text>
+  <text x="1128" y="276" class="box-text">진단 가능 상태로 전환</text>
+
+  <rect x="1080" y="345" width="330" height="112" class="box box-server"/>
+  <circle cx="1105" cy="369" r="13" class="badge"/><text x="1101" y="374" class="step">6</text>
+  <text x="1128" y="371" class="box-title">패키지 분석</text>
+  <text x="1128" y="395" class="box-text">ooxml/packageLoaded 수신</text>
+  <text x="1128" y="416" class="box-text">part별 문서 상태를 구성</text>
+  <text x="1128" y="437" class="box-text">OOXML 규칙 기반 진단 생성</text>
+
+  <rect x="90" y="515" width="330" height="112" class="box box-renderer"/>
+  <circle cx="115" cy="539" r="13" class="badge"/><text x="111" y="544" class="step">7</text>
+  <text x="138" y="541" class="box-title">Monaco 편집</text>
+  <text x="138" y="565" class="box-text">현재 part를 편집 모델로 표시</text>
+  <text x="138" y="586" class="box-text">사용자 변경을 감지</text>
+  <text x="138" y="607" class="box-text">변경 내용을 지연 전송</text>
+
+  <rect x="1080" y="515" width="330" height="112" class="box box-server"/>
+  <circle cx="1105" cy="539" r="13" class="badge"/><text x="1101" y="544" class="step">8</text>
+  <text x="1128" y="541" class="box-title">diagnostics 발행</text>
+  <text x="1128" y="565" class="box-text">textDocument/publishDiagnostics</text>
+  <text x="1128" y="586" class="box-text">문제 위치와 메시지를 반환</text>
+  <text x="1128" y="607" class="box-text">bridge를 통해 화면으로 전달</text>
+
+  <rect x="585" y="515" width="330" height="112" class="box box-main"/>
+  <circle cx="610" cy="539" r="13" class="badge"/><text x="606" y="544" class="step">9</text>
+  <text x="633" y="541" class="box-title">notification 중계</text>
+  <text x="633" y="565" class="box-text">필요한 LSP 이벤트만 선별</text>
+  <text x="633" y="586" class="box-text">renderer로 진단 이벤트 전달</text>
+  <text x="633" y="607" class="box-text">part별 구독자에게 분배</text>
+
+  <rect x="90" y="665" width="330" height="92" class="box box-output"/>
+  <circle cx="115" cy="689" r="13" class="badge"/><text x="108" y="694" class="step">10</text>
+  <text x="138" y="691" class="box-title">Monaco 표시</text>
+  <text x="138" y="715" class="box-text">diagnostics를 marker로 변환</text>
+  <text x="138" y="736" class="box-text">오류 위치를 에디터에 표시</text>
+  <text x="138" y="752" class="box-text">hover와 overview도 함께 갱신</text>
+
+  <path d="M420 251 H585" class="arrow"/>
+  <path d="M750 297 V345" class="arrow"/>
+  <path d="M915 401 H1080" class="arrow"/>
+  <path d="M1245 297 V345" class="arrow"/>
+  <path d="M1080 401 H915" class="arrow-soft"/>
+  <path d="M585 401 H420" class="arrow-soft"/>
+  <path d="M255 297 V345" class="arrow"/>
+  <path d="M420 401 H585" class="arrow"/>
+  <path d="M1245 457 V515" class="arrow"/>
+  <path d="M420 571 H585" class="arrow"/>
+  <path d="M915 571 H1080" class="arrow"/>
+  <path d="M1080 571 H915" class="arrow-soft"/>
+  <path d="M585 571 H420" class="arrow-soft"/>
+  <path d="M255 627 V665" class="arrow"/>
+
+  <rect x="410" y="795" width="680" height="82" class="note"/>
+  <text x="432" y="820" class="note-title">핵심 계약</text>
+  <text x="432" y="843" class="note-text">패키지 전달은 custom RPC(ooxml/packageLoaded, ooxml/partUpdated)를 사용한다.</text>
+  <text x="432" y="864" class="note-text">진단 결과는 publishDiagnostics를 Monaco marker로 변환해 표시한다.</text>
+</svg>

@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { lspClient, lspLog } from '../lsp/client'
+import type { PackageKind, PartDescriptor } from '../lsp/types'
 
 interface DocumentData {
   containerFormat: 'ooxml' | 'odf'
@@ -78,6 +80,77 @@ export function isOriginalDocumentPath(
   originalFilePath: string | null
 ): boolean {
   return Boolean(filePath && originalFilePath && filePath === originalFilePath)
+}
+
+function mapDocumentTypeToLspKind(documentType: string | undefined): PackageKind | null {
+  if (!documentType) return null
+  const value = documentType.toLowerCase()
+  if (value === 'xlsx' || value === 'spreadsheet' || value.includes('spreadsheet') || value.includes('sml'))
+    return 'xlsx'
+  if (
+    value === 'docx' ||
+    value === 'document' ||
+    value === 'wordprocessing' ||
+    value.includes('wordprocess') ||
+    value.includes('wml')
+  )
+    return 'docx'
+  if (value === 'pptx' || value === 'presentation' || value.includes('presentation') || value.includes('pml'))
+    return 'pptx'
+  return null
+}
+
+function isXmlPart(partPath: string, contentType: string | undefined): boolean {
+  if (partPath.toLowerCase().endsWith('.xml') || partPath.toLowerCase().endsWith('.rels')) return true
+  if (!contentType) return false
+  return contentType.includes('xml')
+}
+
+async function loadCurrentDocumentToLsp(
+  filePath: string,
+  fileData: string,
+  documentData: DocumentData
+): Promise<void> {
+  if (!lspClient.isAvailable()) {
+    console.warn('[lsp] bridge not available on window.electronAPI')
+    return
+  }
+  const kind = mapDocumentTypeToLspKind(documentData.documentType)
+  if (!kind) {
+    console.warn('[lsp] skip packageLoaded — unsupported documentType:', documentData.documentType)
+    return
+  }
+
+  // Send every part the package declares — ms-validator rejects the whole
+  // package if [Content_Types].xml references a part that isn't present in
+  // the zip it receives (e.g. /docProps/thumbnail.jpeg). For binary parts
+  // we send the descriptor with no text; the LSP packs an empty placeholder
+  // so the part exists at the expected path.
+  const parts: PartDescriptor[] = []
+  for (const [partPath, info] of Object.entries(documentData.parts)) {
+    const contentType = info?.contentType ?? 'application/octet-stream'
+    if (isXmlPart(partPath, info?.contentType)) {
+      const result = await window.electronAPI.getPart(fileData, partPath, filePath)
+      if (result.success && typeof result.data === 'string') {
+        parts.push({ path: partPath, contentType, text: result.data })
+      } else {
+        lspLog(`[lsp] getPart failed → ${partPath}: ${result.error ?? 'no data'}`)
+        parts.push({ path: partPath, contentType })
+      }
+    } else {
+      parts.push({ path: partPath, contentType })
+    }
+  }
+
+  lspLog(`[lsp] packageLoaded → kind=${kind} parts=${parts.length}`)
+  for (const p of parts) {
+    lspLog(`[lsp]   • ${p.path} (ct=${p.contentType}, text.length=${(p.text ?? '').length})`)
+  }
+  try {
+    await lspClient.loadPackage({ packageId: `file://${filePath}`, kind, parts })
+  } catch (error) {
+    console.warn('[lsp] Failed to push package to LSP:', error)
+  }
 }
 
 interface DocumentState {
@@ -187,6 +260,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         comparisonPartContent: null,
         partDiffStatus: {},
       })
+      void loadCurrentDocumentToLsp(path, fileData, parseResult.data)
       return true
     } catch (error) {
       set({
@@ -269,6 +343,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
   updatePartContent: (content) => {
     set({ modifiedContent: content })
+    const { selectedPart } = get()
+    if (selectedPart) {
+      lspClient.schedulePartUpdate(selectedPart, content)
+    }
   },
 
   saveDocument: async (path) => {

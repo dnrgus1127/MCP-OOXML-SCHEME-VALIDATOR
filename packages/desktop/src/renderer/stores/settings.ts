@@ -5,6 +5,7 @@ import type { EditorThemeId } from '../constants/editorTheme'
 export interface XmlEditorSettings {
   validationFeatureEnabled: boolean
   validateOnOpen: boolean
+  lspMarkersEnabled: boolean
   revalidateShortcut: string
   editorTheme: EditorThemeId
 }
@@ -61,6 +62,7 @@ const defaultSettings: SettingsData = {
   xmlEditor: {
     validationFeatureEnabled: false,
     validateOnOpen: false,
+    lspMarkersEnabled: true,
     revalidateShortcut: 'CmdOrCtrl+Shift+V',
     editorTheme: 'vs-dark',
   },

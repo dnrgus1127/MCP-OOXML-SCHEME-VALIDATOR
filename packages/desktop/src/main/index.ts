@@ -36,6 +36,7 @@ import {
   listRecentFiles,
   removeRecentFile,
 } from './recent-files-store'
+import { getLspBridge, registerLspIpc } from './lsp/bridge'
 import type { OpenTool } from '../shared/recent-files'
 
 let mainWindow: BrowserWindow | null = null
@@ -193,8 +194,11 @@ function createWindow(): void {
   })
 
   // Load the app
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:5173')
+  // dev: electron-vite가 주입하는 렌더러 dev 서버 URL 사용 (포트가 밀려도 항상 정확한 주소 로드)
+  // prod: 빌드된 렌더러 파일 로드
+  const rendererDevUrl = process.env.ELECTRON_RENDERER_URL
+  if (rendererDevUrl) {
+    mainWindow.loadURL(rendererDevUrl)
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
@@ -1035,6 +1039,7 @@ app.whenReady().then(() => {
   createMenu()
   createWindow()
   setupIpcHandlers()
+  registerLspIpc()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -1044,7 +1049,12 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  getLspBridge().stop()
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  getLspBridge().stop()
 })

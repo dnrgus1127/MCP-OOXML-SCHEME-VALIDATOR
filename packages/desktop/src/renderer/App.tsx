@@ -101,6 +101,27 @@ declare global {
       onMenuSaveAs: (callback: () => void) => () => void
       onMenuValidate: (callback: () => void) => () => void
       onMenuQuickOpen: (callback: () => void) => () => void
+      lsp: {
+        start: (options?: {
+          enableMsValidator?: boolean
+          msValidatorBinPath?: string
+          deepValidate?: 'on-change' | 'on-save' | 'manual'
+          fileFormatVersion?: string
+        }) => Promise<{ success: boolean; error?: string }>
+        stop: () => Promise<{ success: boolean; error?: string }>
+        request: <T = unknown>(
+          method: string,
+          params?: unknown
+        ) => Promise<{ success: true; data: T } | { success: false; error: string }>
+        notify: (
+          method: string,
+          params?: unknown
+        ) => Promise<{ success: boolean; error?: string }>
+        log: (message: string) => Promise<{ success: boolean }>
+        onNotification: (
+          callback: (message: { method: string; params: unknown }) => void
+        ) => () => void
+      }
     }
   }
 }

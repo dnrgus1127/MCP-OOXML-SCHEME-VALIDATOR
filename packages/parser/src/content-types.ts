@@ -106,17 +106,26 @@ export function buildContentTypeMap(
 export function detectDocumentType(
   result: ContentTypesResult
 ): 'spreadsheet' | 'document' | 'presentation' | 'unknown' {
+  // First pass: the package's *main* part is what decides the document type.
+  // Embedded objects (e.g. a PPTX chart's backing xlsx) advertise their own
+  // *ml content types and would otherwise win on a naive substring match.
   for (const entry of result.entries) {
     const ct = entry.contentType.toLowerCase()
+    if (ct.includes('presentationml.presentation.main')) return 'presentation'
+    if (ct.includes('wordprocessingml.document.main')) return 'document'
+    if (ct.includes('spreadsheetml.sheet.main')) return 'spreadsheet'
+  }
 
-    if (ct.includes('spreadsheetml') || ct.includes('sheet.main')) {
-      return 'spreadsheet'
+  for (const entry of result.entries) {
+    const ct = entry.contentType.toLowerCase()
+    if (ct.includes('presentationml') || ct.includes('presentation.main')) {
+      return 'presentation'
     }
     if (ct.includes('wordprocessingml') || ct.includes('document.main')) {
       return 'document'
     }
-    if (ct.includes('presentationml') || ct.includes('presentation.main')) {
-      return 'presentation'
+    if (ct.includes('spreadsheetml') || ct.includes('sheet.main')) {
+      return 'spreadsheet'
     }
   }
 
