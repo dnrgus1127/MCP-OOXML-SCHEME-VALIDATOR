@@ -125,7 +125,62 @@ const wmlDocs: Record<string, ElementDocEntry> = {
 }
 
 const smlDocs: Record<string, ElementDocEntry> = {
+  // --- xl/workbook.xml ---
+  workbook: {
+    summary: '워크북(xl/workbook.xml)의 루트 요소. 시트 목록·정의된 이름·계산 옵션 등을 담는다.',
+    specRef: SML_REF,
+  },
+  fileVersion: {
+    summary: '이 파일을 만든 애플리케이션과 빌드 버전 정보.',
+    attributes: { appName: '생성 앱 이름.', lastEdited: '마지막 편집 버전.' },
+    specRef: SML_REF,
+  },
+  workbookPr: { summary: '워크북 전역 속성(날짜 체계·계산 모드 등).', specRef: SML_REF },
+  bookViews: { summary: '워크북 창 보기(view) 묶음.', specRef: SML_REF },
+  workbookView: { summary: '워크북 창의 한 보기(크기·활성 탭 등).', specRef: SML_REF },
+  sheets: { summary: '워크북에 포함된 시트 목록.', specRef: SML_REF },
+  sheet: {
+    summary: '워크북의 한 시트 항목. 실제 시트 내용은 r:id가 가리키는 파트에 있다.',
+    attributes: {
+      name: '시트 이름(탭에 표시).',
+      sheetId: '워크북 내 시트 ID.',
+      'r:id': '시트 파트(worksheets/sheetN.xml)를 가리키는 관계 ID.',
+      state: '표시 상태. visible/hidden/veryHidden.',
+    },
+    specRef: SML_REF,
+  },
+  definedNames: { summary: '정의된 이름(이름 범위) 묶음.', specRef: SML_REF },
+  definedName: {
+    summary: '정의된 이름(named range). 수식에서 셀 범위를 이름으로 참조한다.',
+    attributes: { name: '이름.', localSheetId: '시트 한정 이름일 때의 시트 인덱스.' },
+    specRef: SML_REF,
+  },
+  calcPr: { summary: '계산 옵션(계산 모드·반복 계산 등).', specRef: SML_REF },
+  // --- xl/worksheets/sheetN.xml ---
   worksheet: { summary: '워크시트의 루트 요소.', specRef: SML_REF },
+  dimension: {
+    summary: '시트에서 사용된 셀 범위(A1:기준).',
+    attributes: { ref: '사용 범위(A1:E10 형식).' },
+    specRef: SML_REF,
+  },
+  sheetViews: { summary: '워크시트 보기(view) 묶음.', specRef: SML_REF },
+  sheetView: {
+    summary: '워크시트의 한 보기(확대율·틀고정·선택 등).',
+    attributes: { workbookViewId: '연결된 워크북 보기 인덱스.', tabSelected: '탭 선택 여부.' },
+    specRef: SML_REF,
+  },
+  selection: { summary: '현재 선택 영역/활성 셀.', specRef: SML_REF },
+  sheetFormatPr: { summary: '시트 기본 행 높이·열 너비 등 형식 기본값.', specRef: SML_REF },
+  pageMargins: {
+    summary: '인쇄 여백(인치 단위).',
+    attributes: {
+      left: '왼쪽 여백.',
+      right: '오른쪽 여백.',
+      top: '위 여백.',
+      bottom: '아래 여백.',
+    },
+    specRef: SML_REF,
+  },
   sheetData: { summary: '시트의 셀 데이터 컨테이너. 행(row)들을 담는다.', specRef: SML_REF },
   row: {
     summary: '워크시트의 한 행. 셀(c)들을 담는다.',

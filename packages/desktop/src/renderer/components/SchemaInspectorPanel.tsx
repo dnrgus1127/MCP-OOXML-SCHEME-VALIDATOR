@@ -66,6 +66,14 @@ function renderSuccess(description: SchemaElementDescription, attributeName?: st
         {description.isAbstract ? <span className="schema-inspector-tag">abstract</span> : null}
       </div>
 
+      {description.documentation ? (
+        <p className="schema-inspector-doc">{description.documentation}</p>
+      ) : (
+        <p className="schema-inspector-doc schema-inspector-doc--empty">
+          이 요소의 설명은 아직 준비되지 않았습니다. 아래 구조 정보를 참고하세요.
+        </p>
+      )}
+
       <dl className="schema-inspector-meta">
         <div>
           <dt>콘텐츠</dt>
@@ -80,10 +88,6 @@ function renderSuccess(description: SchemaElementDescription, attributeName?: st
           </div>
         ) : null}
       </dl>
-
-      {description.documentation ? (
-        <p className="schema-inspector-doc">{description.documentation}</p>
-      ) : null}
 
       {focusedAttribute ? (
         <section className="schema-inspector-section schema-inspector-section--focus">
