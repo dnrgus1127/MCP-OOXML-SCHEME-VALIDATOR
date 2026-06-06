@@ -18,6 +18,7 @@ export interface SchemaAttributeInfo {
   allowedValues?: string[]
   fixed?: string
   default?: string
+  description?: string
 }
 
 export interface SchemaChildInfo {
@@ -44,6 +45,7 @@ export interface SchemaElementDescription {
   typeName?: string
   contentKind: SchemaContentKind
   documentation?: string
+  specRef?: string
   isAbstract?: boolean
   compositor?: 'sequence' | 'choice' | 'all'
   attributes: SchemaAttributeInfo[]

@@ -1027,6 +1027,14 @@ body {
   margin-left: auto;
 }
 
+.schema-inspector-specref {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+}
+
 /* Validation Panel */
 .validation-panel {
   width: 300px;

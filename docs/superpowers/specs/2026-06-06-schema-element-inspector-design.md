@@ -83,10 +83,15 @@ OOXML 요소 대부분은 **지역(local) element**로 complexType 안에 정의
 
 ## 7. 단계
 
-- Phase 1 (본 작업): 위 전체
-- Phase 2: 같은 서비스 재사용한 자동완성(completion provider)
-- Phase 0(선택, 별도): `tools/xsd-converter`의 `<xsd:documentation>` 보존 →
-  `SchemaElementDescription.documentation` 필드 채움
+- Phase 1 (완료): 위 전체(구조 정보)
+- Phase 0 (완료): 산문 설명 = **수동 큐레이션 사전**(`element-docs.ts`)
+  - OOXML 공식 XSD엔 `<xsd:documentation>`이 거의 없음을 확인(본문 wml/sml/pml/dml-main = 0개)
+    → XSD 추출이 아니라 핵심 요소 수동 큐레이션으로 결정
+  - strict 네임스페이스 키 기준 TS 사전(런타임 의존성 0), 조회 시 transitional→strict 정규화
+  - describer가 `documentation`(요소) / `description`(속성) / `specRef`(출처)을 병합
+  - 큐레이션 우선순위는 "핵심 요소 수동 선정"으로 시작(빈도 자동 분석은 샘플 문서 확보 시),
+    ISO 섹션 번호/인벤토리 SDK 자동 추출은 보류(현재는 specRef를 파트 수준으로 수동 표기)
+- Phase 2 (예정): 같은 서비스 재사용한 자동완성(completion provider)
 
 ## 8. 알려진 한계
 

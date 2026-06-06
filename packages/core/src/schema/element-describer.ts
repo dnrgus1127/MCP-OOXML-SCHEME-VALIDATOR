@@ -5,8 +5,9 @@
  * 에디터가 사람이 읽기 쉬운 형태로 보여줄 수 있는 구조 정보(타입, 허용 자식 요소,
  * 허용 속성, 허용 값/facet)를 생성한다.
  *
- * 주의: 현재 JSON 스키마에는 <xsd:documentation> 산문 설명이 보존되어 있지 않다.
- * `documentation` 필드는 향후 xsd-converter가 annotation을 보존하면 채워진다.
+ * 산문 설명: OOXML 공식 XSD에는 <xsd:documentation>이 거의 없으므로, 사람이 읽는
+ * 설명은 element-docs.ts의 수동 큐레이션 사전에서 가져와 `documentation`/속성
+ * `description`을 채운다(있을 때만).
  */
 
 import type {
@@ -27,6 +28,7 @@ import {
   isEnumerationFacet,
   isSimpleType,
 } from '../types'
+import { getElementDoc } from './element-docs'
 import { resolveTypeReference } from '../engine/type-resolver'
 import { resolveNamespaceWithFallback } from '../engine/namespace-helpers'
 
@@ -57,6 +59,8 @@ export interface SchemaAttributeInfo {
   allowedValues?: string[]
   fixed?: string
   default?: string
+  /** 큐레이션된 속성 설명(있을 때만) */
+  description?: string
 }
 
 /** 허용 자식 요소 정보 */
@@ -77,8 +81,10 @@ export interface SchemaElementDescription {
   namespaceUri: string
   typeName?: string
   contentKind: SchemaContentKind
-  /** 향후 <xsd:documentation> 보존 시 채워짐 */
+  /** 큐레이션된 산문 설명(element-docs.ts, 있을 때만) */
   documentation?: string
+  /** 설명 출처 표기(있을 때만) */
+  specRef?: string
   isAbstract?: boolean
   /** elementOnly/complexContent의 최상위 compositor 종류 */
   compositor?: 'sequence' | 'choice' | 'all'
@@ -466,6 +472,8 @@ function describeElementDef(
     }
   }
 
+  const curatedDoc = getElementDoc(namespaceUri, elementName)
+
   const description: SchemaElementDescription = {
     found: true,
     name: elementName,
@@ -473,6 +481,8 @@ function describeElementDef(
     typeName,
     contentKind: 'unknown',
     isAbstract: schemaElement.abstract,
+    documentation: curatedDoc?.summary,
+    specRef: curatedDoc?.specRef,
     attributes: [],
     children: [],
   }
@@ -548,10 +558,13 @@ function describeElementDef(
   description.children = children
   description.compositor = compositor
 
-  // 속성 수집
+  // 속성 수집 + 큐레이션된 속성 설명 병합
   const attributes = new Map<string, SchemaAttributeInfo>()
   collectAttributes(type, registry, typeNamespaceUri, attributes, new Set<string>())
-  description.attributes = [...attributes.values()]
+  description.attributes = [...attributes.values()].map((attr) => {
+    const attrDoc = curatedDoc?.attributes?.[attr.name]
+    return attrDoc ? { ...attr, description: attrDoc } : attr
+  })
 
   return description
 }

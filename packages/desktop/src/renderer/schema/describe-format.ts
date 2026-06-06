@@ -32,6 +32,7 @@ export function formatSchemaHoverMarkdown(
     const attr = description.attributes.find((candidate) => candidate.name === attributeName)
     if (attr) {
       const lines = [`**\`@${attr.name}\`** — ${attr.use === 'required' ? '필수' : '선택'} 속성`]
+      if (attr.description) lines.push(attr.description)
       if (attr.typeName) lines.push(`타입: \`${attr.typeName}\``)
       if (attr.allowedValues && attr.allowedValues.length > 0) {
         lines.push(

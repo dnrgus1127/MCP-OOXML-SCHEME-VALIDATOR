@@ -94,6 +94,9 @@ function renderSuccess(description: SchemaElementDescription, attributeName?: st
             {focusedAttribute.use === 'required' ? '필수' : '선택'}
             {focusedAttribute.typeName ? ` · ${focusedAttribute.typeName}` : ''}
           </p>
+          {focusedAttribute.description ? (
+            <p className="schema-inspector-doc">{focusedAttribute.description}</p>
+          ) : null}
           {focusedAttribute.allowedValues && focusedAttribute.allowedValues.length > 0 ? (
             <>
               <p className="schema-inspector-subtitle">허용 값</p>
@@ -122,6 +125,7 @@ function renderSuccess(description: SchemaElementDescription, attributeName?: st
               <li
                 key={attr.name}
                 className={attr.name === attributeName ? 'is-focused' : undefined}
+                title={attr.description}
               >
                 <code>{attr.name}</code>
                 <span className={`schema-inspector-use schema-inspector-use--${attr.use}`}>
@@ -155,6 +159,10 @@ function renderSuccess(description: SchemaElementDescription, attributeName?: st
             ))}
           </ul>
         </section>
+      ) : null}
+
+      {description.specRef ? (
+        <p className="schema-inspector-specref">출처: {description.specRef}</p>
       ) : null}
     </div>
   )
