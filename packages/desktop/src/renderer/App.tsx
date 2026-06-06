@@ -79,6 +79,10 @@ declare global {
       analyzeSchemaReferences: (
         base64Data: string
       ) => Promise<{ success: boolean; data?: any; error?: string }>
+      resolveSchemaElement: (params: {
+        documentType?: string
+        path: Array<{ namespaceUri: string; localName: string }>
+      }) => Promise<{ success: boolean; data?: any; error?: string }>
       searchDocument: (
         base64Data: string,
         query: string,
@@ -113,10 +117,7 @@ declare global {
           method: string,
           params?: unknown
         ) => Promise<{ success: true; data: T } | { success: false; error: string }>
-        notify: (
-          method: string,
-          params?: unknown
-        ) => Promise<{ success: boolean; error?: string }>
+        notify: (method: string, params?: unknown) => Promise<{ success: boolean; error?: string }>
         log: (message: string) => Promise<{ success: boolean }>
         onNotification: (
           callback: (message: { method: string; params: unknown }) => void

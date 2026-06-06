@@ -19,6 +19,9 @@ interface ToolbarProps {
   // Search
   isSearchOpen?: boolean
   onToggleSearch?: () => void
+  // Schema inspector
+  isInspectorOpen?: boolean
+  onToggleInspector?: () => void
 }
 
 export function Toolbar({
@@ -37,6 +40,8 @@ export function Toolbar({
   onToggleCompare,
   isSearchOpen = false,
   onToggleSearch,
+  isInspectorOpen = false,
+  onToggleInspector,
 }: ToolbarProps) {
   const fileName = filePath ? filePath.split(/[\\/]/).pop() : null
   const writeDisabled = !hasDocument || isCompareMode
@@ -93,6 +98,16 @@ export function Toolbar({
               title="문서 전체 XML 검색"
             >
               🔍 Search
+            </button>
+          )}
+          {onToggleInspector && (
+            <button
+              onClick={onToggleInspector}
+              className={`toolbar-btn${isInspectorOpen ? ' toolbar-btn--active' : ''}`}
+              disabled={!hasDocument || isCompareMode}
+              title="커서 위치의 요소 스키마 정보 패널"
+            >
+              📖 Schema
             </button>
           )}
         </>

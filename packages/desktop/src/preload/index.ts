@@ -47,6 +47,10 @@ const api = {
     ipcRenderer.invoke('ooxml:validate', base64Data, filePath),
   analyzeSchemaReferences: (base64Data: string) =>
     ipcRenderer.invoke('ooxml:analyzeSchemaReferences', base64Data),
+  resolveSchemaElement: (params: {
+    documentType?: string
+    path: Array<{ namespaceUri: string; localName: string }>
+  }) => ipcRenderer.invoke('ooxml:resolveSchemaElement', params),
   searchDocument: (base64Data: string, query: string, filePath?: string) =>
     ipcRenderer.invoke('ooxml:search', base64Data, query, filePath),
 
@@ -109,9 +113,7 @@ const api = {
       >,
     notify: (method: string, params?: unknown) => ipcRenderer.invoke('lsp:notify', method, params),
     log: (message: string) => ipcRenderer.invoke('lsp:log', message),
-    onNotification: (
-      callback: (message: { method: string; params: unknown }) => void
-    ) => {
+    onNotification: (callback: (message: { method: string; params: unknown }) => void) => {
       const listener = (
         _: Electron.IpcRendererEvent,
         message: { method: string; params: unknown }

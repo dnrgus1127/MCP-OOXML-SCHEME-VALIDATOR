@@ -424,6 +424,17 @@ export function SettingsScreen({ onClose }: SettingsScreenProps) {
                   </Row>
 
                   <Row
+                    label="스키마 hover 도움말"
+                    hint="OOXML 문서에서 요소·속성에 마우스를 올리면 스키마 기준 타입, 허용 자식 요소, 허용 값을 툴팁으로 보여줍니다. 끄면 우측 '요소 스키마 정보' 패널은 그대로 두고 hover 툴팁만 비활성화됩니다."
+                  >
+                    <Toggle
+                      value={xmlEditor.schemaHoverEnabled}
+                      onChange={(next) => updateXmlEditorSettings({ schemaHoverEnabled: next })}
+                      ariaLabel="스키마 hover 도움말"
+                    />
+                  </Row>
+
+                  <Row
                     label="에디터 테마"
                     hint="Monaco Editor가 제공하는 모든 테마를 선택할 수 있습니다. 항목에 마우스를 올리면 즉시 미리보기됩니다."
                     align="start"

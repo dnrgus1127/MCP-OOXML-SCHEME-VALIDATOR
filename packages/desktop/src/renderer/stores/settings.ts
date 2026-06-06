@@ -8,6 +8,8 @@ export interface XmlEditorSettings {
   lspMarkersEnabled: boolean
   revalidateShortcut: string
   editorTheme: EditorThemeId
+  /** 스키마 기반 hover 툴팁 표시 */
+  schemaHoverEnabled: boolean
 }
 
 export interface GeneralSettings {
@@ -65,6 +67,7 @@ const defaultSettings: SettingsData = {
     lspMarkersEnabled: true,
     revalidateShortcut: 'CmdOrCtrl+Shift+V',
     editorTheme: 'vs-dark',
+    schemaHoverEnabled: true,
   },
   batchValidator: {
     autoExpandResults: true,

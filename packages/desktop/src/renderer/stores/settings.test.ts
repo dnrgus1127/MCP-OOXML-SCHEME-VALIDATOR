@@ -13,6 +13,7 @@ function buildCurrentState() {
       lspMarkersEnabled: true,
       revalidateShortcut: 'CmdOrCtrl+Shift+V',
       editorTheme: 'vs-dark' as const,
+      schemaHoverEnabled: true,
     },
     batchValidator: {
       autoExpandResults: true,
