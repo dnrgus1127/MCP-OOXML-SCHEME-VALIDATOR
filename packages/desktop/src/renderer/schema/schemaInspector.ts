@@ -99,3 +99,25 @@ export function lookupSchemaElementByPath(
 export function clearSchemaLookupCache(): void {
   cache.clear()
 }
+
+function localPart(name: string): string {
+  const colon = name.indexOf(':')
+  return colon >= 0 ? name.slice(colon + 1) : name
+}
+
+/**
+ * 커서가 가리키는 속성명으로 스키마 속성을 찾는다.
+ * 커서 토큰은 prefix가 붙은 raw 형태(예: `w:val`)이지만, 스키마 속성은 보통
+ * local name(`val`)으로 키잡혀 있으므로 exact 일치를 먼저, 이어서 local name으로 매칭한다.
+ * (ref로 `prefix:name` 키인 속성은 exact 일치가 우선되어 깨지지 않는다.)
+ */
+export function findAttributeByName(
+  attributes: SchemaAttributeInfo[],
+  attributeName: string | undefined
+): SchemaAttributeInfo | undefined {
+  if (!attributeName) return undefined
+  const exact = attributes.find((attr) => attr.name === attributeName)
+  if (exact) return exact
+  const target = localPart(attributeName)
+  return attributes.find((attr) => localPart(attr.name) === target)
+}

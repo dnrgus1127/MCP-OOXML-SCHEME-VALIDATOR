@@ -4,7 +4,7 @@
  * 가독성 원칙: 제목(요소/속성명) → 설명 → 메타 → 구분선 → 칩 목록 순.
  * 값·요소명은 백틱 코드 칩으로 감싸고 공백으로 구분해 시각적으로 분리한다.
  */
-import type { SchemaElementDescription } from './schemaInspector'
+import { findAttributeByName, type SchemaElementDescription } from './schemaInspector'
 
 const CONTENT_KIND_LABEL: Record<SchemaElementDescription['contentKind'], string> = {
   empty: '빈 요소',
@@ -35,7 +35,7 @@ export function formatSchemaHoverMarkdown(
 
   // 속성에 호버한 경우: 해당 속성 정보를 우선 표시
   if (attributeName) {
-    const attr = description.attributes.find((candidate) => candidate.name === attributeName)
+    const attr = findAttributeByName(description.attributes, attributeName)
     if (attr) {
       const head: string[] = [`### \`@${attr.name}\``]
       if (attr.description) head.push(attr.description)

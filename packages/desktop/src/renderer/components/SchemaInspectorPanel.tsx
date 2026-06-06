@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
+  findAttributeByName,
   lookupSchemaElementByPath,
   type SchemaElementDescription,
   type SchemaPathStep,
@@ -55,9 +56,7 @@ function AllowedValues({ values }: { values: string[] }) {
 }
 
 function renderSuccess(description: SchemaElementDescription, attributeName?: string) {
-  const focusedAttribute = attributeName
-    ? description.attributes.find((attr) => attr.name === attributeName)
-    : undefined
+  const focusedAttribute = findAttributeByName(description.attributes, attributeName)
 
   return (
     <div className="schema-inspector-content">
@@ -128,7 +127,7 @@ function renderSuccess(description: SchemaElementDescription, attributeName?: st
             {description.attributes.map((attr) => (
               <li
                 key={attr.name}
-                className={attr.name === attributeName ? 'is-focused' : undefined}
+                className={attr.name === focusedAttribute?.name ? 'is-focused' : undefined}
                 title={attr.description}
               >
                 <code>{attr.name}</code>
