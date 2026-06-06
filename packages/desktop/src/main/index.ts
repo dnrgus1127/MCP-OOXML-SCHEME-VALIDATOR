@@ -13,6 +13,8 @@ import {
   loadSchemaRegistry,
   getSupportedSchemaNamespaces,
   analyzeOoxmlSchemaReferences,
+  describeSchemaElementByPath,
+  type SchemaPathStep,
   validateXmlEvents,
   type OoxmlDocumentType,
   type ValidationError,
@@ -124,7 +126,9 @@ function mapValidationIssues(
   }))
 }
 
-function summarizeValidationResults(results: RendererPartValidationResult[]): RendererValidationSummary {
+function summarizeValidationResults(
+  results: RendererPartValidationResult[]
+): RendererValidationSummary {
   return {
     totalParts: results.length,
     validParts: results.filter((result) => result.valid).length,
@@ -132,6 +136,17 @@ function summarizeValidationResults(results: RendererPartValidationResult[]): Re
     totalErrors: results.reduce((sum, result) => sum + (result.errors?.length ?? 0), 0),
     totalWarnings: results.reduce((sum, result) => sum + (result.warnings?.length ?? 0), 0),
   }
+}
+
+const schemaRegistryCache = new Map<OoxmlDocumentType, SchemaRegistry>()
+
+/** documentType별 스키마 레지스트리를 캐시해 커서 이동마다 재생성하지 않도록 한다. */
+function getCachedSchemaRegistry(documentType: OoxmlDocumentType): SchemaRegistry {
+  const cached = schemaRegistryCache.get(documentType)
+  if (cached) return cached
+  const registry = loadSchemaRegistry(documentType)
+  schemaRegistryCache.set(documentType, registry)
+  return registry
 }
 
 function validateXmlPart(
@@ -498,6 +513,24 @@ function setupIpcHandlers(): void {
     }
   })
 
+  ipcMain.handle(
+    'ooxml:resolveSchemaElement',
+    async (_, params: { documentType?: string; path: SchemaPathStep[] }) => {
+      try {
+        if (!params || !Array.isArray(params.path) || params.path.length === 0) {
+          return { success: false, error: 'Invalid resolveSchemaElement parameters' }
+        }
+
+        const documentType = (params.documentType as OoxmlDocumentType | undefined) ?? 'unknown'
+        const registry = getCachedSchemaRegistry(documentType)
+        const description = describeSchemaElementByPath(registry, params.path)
+        return { success: true, data: description }
+      } catch (error) {
+        return { success: false, error: String(error) }
+      }
+    }
+  )
+
   const isValidRecentFileInput = (
     input: unknown
   ): input is {
@@ -551,30 +584,36 @@ function setupIpcHandlers(): void {
   })
 
   // Get part content
-  ipcMain.handle('ooxml:getPart', async (_, base64Data: string, partPath: string, filePath?: string) => {
-    try {
-      const buffer = Buffer.from(base64Data, 'base64')
-      const content = getEditablePartText(buffer, partPath, filePath)
+  ipcMain.handle(
+    'ooxml:getPart',
+    async (_, base64Data: string, partPath: string, filePath?: string) => {
+      try {
+        const buffer = Buffer.from(base64Data, 'base64')
+        const content = getEditablePartText(buffer, partPath, filePath)
 
-      if (!content) {
-        return { success: false, error: 'Part not found' }
+        if (!content) {
+          return { success: false, error: 'Part not found' }
+        }
+
+        return { success: true, data: content }
+      } catch (error) {
+        return { success: false, error: String(error) }
       }
-
-      return { success: true, data: content }
-    } catch (error) {
-      return { success: false, error: String(error) }
     }
-  })
+  )
 
   // Search document
-  ipcMain.handle('ooxml:search', async (_, base64Data: string, query: string, filePath?: string) => {
-    try {
-      const buffer = Buffer.from(base64Data, 'base64')
-      return { success: true, data: searchEditableDocument(buffer, query, filePath) }
-    } catch (error) {
-      return { success: false, error: String(error) }
+  ipcMain.handle(
+    'ooxml:search',
+    async (_, base64Data: string, query: string, filePath?: string) => {
+      try {
+        const buffer = Buffer.from(base64Data, 'base64')
+        return { success: true, data: searchEditableDocument(buffer, query, filePath) }
+      } catch (error) {
+        return { success: false, error: String(error) }
+      }
     }
-  })
+  )
 
   // Update part content
   ipcMain.handle(
@@ -954,7 +993,8 @@ function generateHTML(data: any): string {
 
     if (file.success && file.validation) {
       const partsWithIssues = file.validation.results.filter(
-        (part: any) => !part.valid || (part.errors?.length ?? 0) > 0 || (part.warnings?.length ?? 0) > 0
+        (part: any) =>
+          !part.valid || (part.errors?.length ?? 0) > 0 || (part.warnings?.length ?? 0) > 0
       )
       if (partsWithIssues.length > 0) {
         html += `    <div class="parts">\n`

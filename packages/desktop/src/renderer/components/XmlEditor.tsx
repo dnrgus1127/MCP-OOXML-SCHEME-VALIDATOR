@@ -4,8 +4,25 @@ import { useSettingsStore } from '../stores/settings'
 import { getActivePlugins, type PluginContext } from '../plugins'
 import { lspClient, lspLog } from '../lsp/client'
 import { diagnosticsToMarkers, LSP_MARKER_OWNER } from '../lsp/markers'
+import {
+  buildSchemaPath,
+  collectXmlnsBindings,
+  resolveCursorContext,
+  resolveNamespaceUri,
+  type SchemaPathStep,
+} from '../schema/cursor-context'
+import { lookupSchemaElementByPath } from '../schema/schemaInspector'
+import { formatSchemaHoverMarkdown } from '../schema/describe-format'
 
 type PluginContextProvider = () => PluginContext | null
+
+export interface SchemaCursorContext {
+  rawName: string
+  localName: string
+  attributeName?: string
+  namespaceUri: string | null
+  path: SchemaPathStep[]
+}
 
 interface XmlEditorProps {
   content: string
@@ -16,6 +33,12 @@ interface XmlEditorProps {
   comparisonContent?: string | null
   primaryLabel?: string
   comparisonLabel?: string
+  /** OOXML 문서 타입 (스키마 레지스트리 선택용) */
+  documentType?: string
+  /** 스키마 기반 hover 활성화 */
+  schemaHoverEnabled?: boolean
+  /** 커서 위치의 요소/속성 컨텍스트 변경 알림 */
+  onSchemaContextChange?: (context: SchemaCursorContext | null) => void
 }
 
 // Format XML with proper indentation
@@ -74,6 +97,9 @@ export function XmlEditor({
   comparisonContent = null,
   primaryLabel,
   comparisonLabel,
+  documentType,
+  schemaHoverEnabled = false,
+  onSchemaContextChange,
 }: XmlEditorProps) {
   const editorContainerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<any>(null)
@@ -81,6 +107,11 @@ export function XmlEditor({
   const monacoRef = useRef<any>(null)
   const hoverProviderRef = useRef<{ dispose: () => void } | null>(null)
   const pluginCtxProviderRef = useRef<PluginContextProvider | undefined>(getPluginContext)
+  const documentTypeRef = useRef<string | undefined>(documentType)
+  const schemaHoverEnabledRef = useRef<boolean>(schemaHoverEnabled)
+  const onSchemaContextChangeRef =
+    useRef<XmlEditorProps['onSchemaContextChange']>(onSchemaContextChange)
+  const cursorContextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [localContent, setLocalContent] = useState(() => formatXml(content))
   const [isMonacoReady, setIsMonacoReady] = useState(false)
@@ -96,6 +127,18 @@ export function XmlEditor({
   useEffect(() => {
     pluginCtxProviderRef.current = getPluginContext
   }, [getPluginContext])
+
+  useEffect(() => {
+    documentTypeRef.current = documentType
+  }, [documentType])
+
+  useEffect(() => {
+    schemaHoverEnabledRef.current = schemaHoverEnabled
+  }, [schemaHoverEnabled])
+
+  useEffect(() => {
+    onSchemaContextChangeRef.current = onSchemaContextChange
+  }, [onSchemaContextChange])
 
   useEffect(() => {
     let disposed = false
@@ -152,46 +195,104 @@ export function XmlEditor({
           renderValidationDecorations: 'on',
         })
 
+        const emitCursorContext = () => {
+          const notify = onSchemaContextChangeRef.current
+          if (!notify) return
+          if (cursorContextTimerRef.current) clearTimeout(cursorContextTimerRef.current)
+          cursorContextTimerRef.current = setTimeout(() => {
+            const editor = editorRef.current
+            const model = editor?.getModel?.()
+            const position = editor?.getPosition?.()
+            if (!model || !position) {
+              notify(null)
+              return
+            }
+            const text = model.getValue()
+            const offset = model.getOffsetAt(position)
+            const cursorContext = resolveCursorContext(text, offset)
+            if (!cursorContext) {
+              notify(null)
+              return
+            }
+            const bindings = collectXmlnsBindings(text)
+            const namespaceUri = resolveNamespaceUri(cursorContext, bindings)
+            const path = buildSchemaPath(cursorContext, bindings) ?? []
+            notify({
+              rawName: cursorContext.rawName,
+              localName: cursorContext.localName,
+              attributeName: cursorContext.attributeName,
+              namespaceUri,
+              path,
+            })
+          }, 150)
+        }
+
         editorRef.current.onDidChangeModelContent(() => {
           const value = editorRef.current?.getValue() ?? ''
           setLocalContent(value)
           onChange(value)
+          emitCursorContext()
         })
+
+        editorRef.current.onDidChangeCursorPosition(() => {
+          emitCursorContext()
+        })
+
+        emitCursorContext()
 
         hoverProviderRef.current = monaco.languages.registerHoverProvider('xml', {
           provideHover: async (model, position, token) => {
-            const provider = pluginCtxProviderRef.current
-            if (!provider) return null
-            const ctx = provider()
-            if (!ctx) return null
             if (model.uri.toString() !== editorRef.current?.getModel()?.uri.toString()) {
               return null
             }
 
-            const enabled = useSettingsStore.getState().plugins.enabled
-            const active = getActivePlugins(ctx, enabled)
+            // 1) 플러그인 hover (플러그인 컨텍스트가 있을 때만)
+            const provider = pluginCtxProviderRef.current
+            const ctx = provider?.() ?? null
+            if (ctx) {
+              const enabled = useSettingsStore.getState().plugins.enabled
+              const active = getActivePlugins(ctx, enabled)
 
-            for (const plugin of active) {
-              if (!plugin.hooks.provideMonacoHover) continue
-              try {
-                const result = await plugin.hooks.provideMonacoHover(ctx, {
-                  monaco,
-                  model,
-                  position,
-                  token,
-                })
-                if (token.isCancellationRequested) return null
-                if (result) {
-                  return {
-                    contents: result.contents.map((value) => ({ value })),
-                    range: result.range,
+              for (const plugin of active) {
+                if (!plugin.hooks.provideMonacoHover) continue
+                try {
+                  const result = await plugin.hooks.provideMonacoHover(ctx, {
+                    monaco,
+                    model,
+                    position,
+                    token,
+                  })
+                  if (token.isCancellationRequested) return null
+                  if (result) {
+                    return {
+                      contents: result.contents.map((value) => ({ value })),
+                      range: result.range,
+                    }
                   }
+                } catch {
+                  continue
                 }
-              } catch {
-                continue
               }
             }
-            return null
+
+            // 2) 스키마 기반 hover
+            if (!schemaHoverEnabledRef.current) return null
+            const text = model.getValue()
+            const offset = model.getOffsetAt(position)
+            const cursorContext = resolveCursorContext(text, offset)
+            if (!cursorContext) return null
+            const bindings = collectXmlnsBindings(text)
+            const path = buildSchemaPath(cursorContext, bindings)
+            if (!path) return null
+
+            const description = await lookupSchemaElementByPath(
+              documentTypeRef.current ?? 'unknown',
+              path
+            )
+            if (token.isCancellationRequested || !description) return null
+            const markdown = formatSchemaHoverMarkdown(description, cursorContext.attributeName)
+            if (markdown.length === 0) return null
+            return { contents: markdown.map((value) => ({ value })) }
           },
         })
 
@@ -207,6 +308,11 @@ export function XmlEditor({
       disposed = true
       hoverProviderRef.current?.dispose()
       hoverProviderRef.current = null
+
+      if (cursorContextTimerRef.current) {
+        clearTimeout(cursorContextTimerRef.current)
+        cursorContextTimerRef.current = null
+      }
 
       const diffModel = diffEditorRef.current?.getModel?.()
       diffEditorRef.current?.dispose?.()

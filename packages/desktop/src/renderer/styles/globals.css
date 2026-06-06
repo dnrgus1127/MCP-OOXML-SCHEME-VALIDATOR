@@ -39,8 +39,7 @@
   --window-controls-gutter-inline-start: 0px;
   --topbar-content-padding-inline: 16px;
   --mono: 'JetBrains Mono', 'SF Mono', 'Consolas', 'Monaco', monospace;
-  --sans:
-    -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Pretendard', sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Pretendard', sans-serif;
   --font-mono: var(--mono);
 }
 
@@ -809,6 +808,245 @@ body {
   color: #ffb3b3;
 }
 
+/* Schema Inspector Panel (cursor-driven) */
+.schema-inspector-wrapper {
+  width: 100%;
+  border-bottom: 1px solid var(--border-color);
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.schema-inspector-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.schema-inspector-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.schema-inspector-panel-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.schema-inspector-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.schema-inspector-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.schema-inspector-state {
+  margin: 10px 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.schema-inspector-state--error {
+  border-color: rgba(241, 76, 76, 0.35);
+  background: rgba(241, 76, 76, 0.12);
+  color: #ffb3b3;
+}
+
+.schema-inspector-content {
+  overflow: auto;
+  padding: 10px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.schema-inspector-headline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.schema-inspector-element {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.schema-inspector-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.schema-inspector-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 11px;
+}
+
+.schema-inspector-meta > div {
+  display: flex;
+  gap: 6px;
+}
+
+.schema-inspector-meta dt {
+  color: var(--text-muted);
+}
+
+.schema-inspector-meta dd {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.schema-inspector-meta code,
+.schema-inspector-attr-type {
+  font-family: var(--font-mono);
+}
+
+.schema-inspector-doc {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.65;
+  margin: 0;
+  padding: 8px 10px 8px 12px;
+  border-left: 2px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 6px 6px 0;
+}
+
+.schema-inspector-doc--empty {
+  color: var(--text-muted);
+  border-left-color: var(--border-color);
+  background: var(--bg-primary);
+  font-size: 12px;
+}
+
+.schema-inspector-section h4 {
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.schema-inspector-section--focus {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.schema-inspector-subtitle,
+.schema-inspector-attr-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 4px 0;
+}
+
+.schema-inspector-empty-line {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.schema-inspector-values,
+.schema-inspector-attrs,
+.schema-inspector-children {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.schema-inspector-values {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+.schema-inspector-values li code,
+.schema-inspector-attrs li code,
+.schema-inspector-children li code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.schema-inspector-values li code {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.schema-inspector-attrs li,
+.schema-inspector-children li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.schema-inspector-attrs li.is-focused {
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.schema-inspector-use {
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.schema-inspector-use--required {
+  color: #ffd479;
+  border-color: rgba(255, 184, 0, 0.4);
+}
+
+.schema-inspector-attr-type,
+.schema-inspector-occurs,
+.schema-inspector-compositor {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.schema-inspector-occurs {
+  margin-left: auto;
+}
+
+.schema-inspector-specref {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+}
+
 /* Validation Panel */
 .validation-panel {
   width: 300px;
@@ -1126,8 +1364,7 @@ body {
   flex-direction: column;
   padding: 48px 56px;
   background:
-    radial-gradient(800px 600px at 0% 100%, rgba(91, 140, 255, 0.08), transparent 60%),
-    var(--bg-0);
+    radial-gradient(800px 600px at 0% 100%, rgba(91, 140, 255, 0.08), transparent 60%), var(--bg-0);
   border-right: 1px solid var(--line);
   overflow: hidden;
 }
@@ -1433,7 +1670,9 @@ body {
   padding: 6px 10px;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
 }
 
 .bold-right-tab:hover {
@@ -1461,7 +1700,9 @@ body {
   font-family: var(--mono);
   font-size: 11px;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
 }
 
 .bold-storage-empty-btn:hover {
@@ -1629,7 +1870,9 @@ body {
   line-height: 1;
   padding: 0 4px;
   opacity: 0;
-  transition: opacity 0.12s ease, color 0.12s ease;
+  transition:
+    opacity 0.12s ease,
+    color 0.12s ease;
 }
 
 .bold-recent-item:hover .bold-recent-remove-btn,
@@ -2187,7 +2430,9 @@ body {
   padding: 4px 10px;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
 }
 
 .settings-topbar-close:hover {
@@ -2212,8 +2457,7 @@ body {
   border-right: 1px solid var(--line);
   padding: 36px 28px 24px;
   background:
-    radial-gradient(600px 500px at 0% 100%, var(--accent-soft), transparent 60%),
-    var(--bg-0);
+    radial-gradient(600px 500px at 0% 100%, var(--accent-soft), transparent 60%), var(--bg-0);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2287,7 +2531,9 @@ body {
   font-family: var(--sans);
   cursor: pointer;
   text-align: left;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
 }
 
 .settings-nav-item:hover {
@@ -2630,7 +2876,9 @@ body {
   cursor: pointer;
   text-align: left;
   color: var(--text-1);
-  transition: border-color 0.12s ease, background 0.12s ease;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
 }
 
 .settings-theme-card:hover {
@@ -2848,7 +3096,9 @@ body {
   border-radius: 6px;
   background: var(--bg-primary);
   overflow: hidden;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .ext-row:hover {
@@ -2973,7 +3223,10 @@ body {
   padding: 4px 12px;
   cursor: pointer;
   line-height: 1.6;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .ext-action-btn:hover {
@@ -3478,7 +3731,9 @@ body {
   color: var(--text-primary);
   font-size: 12px;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .settings-folder-btn:hover {

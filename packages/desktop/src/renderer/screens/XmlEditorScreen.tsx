@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDocumentStore } from '../stores/document'
 import { DocumentTree } from '../components/DocumentTree'
-import { XmlEditor } from '../components/XmlEditor'
+import { XmlEditor, type SchemaCursorContext } from '../components/XmlEditor'
 import type { PluginContext } from '../plugins'
 import { ValidationPanel } from '../components/ValidationPanel'
 import {
   SchemaReferencePanel,
   type OoxmlSchemaReferenceSummary,
 } from '../components/SchemaReferencePanel'
+import { SchemaInspectorPanel, type SchemaInspectorQuery } from '../components/SchemaInspectorPanel'
 import { SearchPanel } from '../components/SearchPanel'
 import { Toolbar } from '../components/Toolbar'
 import { useSettingsStore } from '../stores/settings'
@@ -67,9 +68,12 @@ export function XmlEditorScreen({
   )
   const validateOnOpen = useSettingsStore((state) => state.xmlEditor.validateOnOpen)
   const revalidateShortcut = useSettingsStore((state) => state.xmlEditor.revalidateShortcut)
+  const schemaHoverEnabled = useSettingsStore((state) => state.xmlEditor.schemaHoverEnabled)
 
   const [showValidation, setShowValidation] = useState(true)
   const [showSearch, setShowSearch] = useState(false)
+  const [showInspector, setShowInspector] = useState(true)
+  const [cursorContext, setCursorContext] = useState<SchemaCursorContext | null>(null)
 
   const [schemaReferenceSummary, setSchemaReferenceSummary] =
     useState<OoxmlSchemaReferenceSummary | null>(null)
@@ -77,6 +81,17 @@ export function XmlEditorScreen({
   const [schemaReferenceError, setSchemaReferenceError] = useState<string | null>(null)
 
   const isDirty = !isCompareMode && modifiedContent !== null && modifiedContent !== partContent
+
+  const isOoxml = documentData?.containerFormat === 'ooxml'
+
+  const inspectorQuery = useMemo<SchemaInspectorQuery | null>(() => {
+    if (!cursorContext) return null
+    return {
+      rawName: cursorContext.rawName,
+      path: cursorContext.path,
+      attributeName: cursorContext.attributeName,
+    }
+  }, [cursorContext])
 
   const handleToggleCompare = useCallback(async () => {
     if (isCompareMode) {
@@ -347,6 +362,8 @@ export function XmlEditorScreen({
         onToggleCompare={() => void handleToggleCompare()}
         isSearchOpen={showSearch}
         onToggleSearch={() => setShowSearch((prev) => !prev)}
+        isInspectorOpen={showInspector}
+        onToggleInspector={isOoxml ? () => setShowInspector((prev) => !prev) : undefined}
       />
 
       {error && (
@@ -390,6 +407,9 @@ export function XmlEditorScreen({
                   comparisonLabel={
                     comparisonFilePath ? comparisonFilePath.split(/[\\/]/).pop() : undefined
                   }
+                  documentType={documentData.documentType}
+                  schemaHoverEnabled={isOoxml && !isCompareMode && schemaHoverEnabled}
+                  onSchemaContextChange={isOoxml && !isCompareMode ? setCursorContext : undefined}
                 />
               ) : isLoading ? (
                 <div className="loading">Loading...</div>
@@ -419,6 +439,16 @@ export function XmlEditorScreen({
                     onClose={() => setShowValidation(false)}
                     onNavigate={handleSelectPart}
                     onRevalidate={handleValidate}
+                  />
+                </div>
+              ) : null}
+
+              {isOoxml && showInspector && !isCompareMode ? (
+                <div className="schema-inspector-wrapper">
+                  <SchemaInspectorPanel
+                    query={inspectorQuery}
+                    documentType={documentData.documentType}
+                    onClose={() => setShowInspector(false)}
                   />
                 </div>
               ) : null}
