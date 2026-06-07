@@ -244,7 +244,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       // Read file
       const readResult = await window.electronAPI.readFile(path)
       if (!readResult.success) {
-        throw new Error(readResult.error || 'Failed to read file')
+        throw new Error(
+          readResult.error ||
+            '파일을 읽지 못했습니다. 파일이 존재하고 접근 권한이 있는지 확인하세요.'
+        )
       }
 
       const fileData = readResult.data!
@@ -252,7 +255,9 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       // Parse document
       const parseResult = await window.electronAPI.parseDocument(fileData, path)
       if (!parseResult.success) {
-        throw new Error(parseResult.error || 'Failed to parse document')
+        throw new Error(
+          parseResult.error || '문서를 분석하지 못했습니다. 지원되는 OOXML/ODF 형식인지 확인하세요.'
+        )
       }
 
       set({
@@ -326,10 +331,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       ])
 
       if (primaryResult && !primaryResult.success) {
-        throw new Error(primaryResult.error || 'Failed to get part content')
+        throw new Error(primaryResult.error || '파트 내용을 불러오지 못했습니다.')
       }
       if (comparisonResult && !comparisonResult.success) {
-        throw new Error(comparisonResult.error || 'Failed to get comparison part content')
+        throw new Error(comparisonResult.error || '비교 파일의 파트 내용을 불러오지 못했습니다.')
       }
 
       set({
@@ -380,7 +385,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       // Write to file
       const writeResult = await window.electronAPI.writeFile(path, currentFileData)
       if (!writeResult.success) {
-        throw new Error(writeResult.error || 'Failed to write file')
+        throw new Error(
+          writeResult.error ||
+            '파일을 저장하지 못했습니다. 다른 프로그램이 파일을 사용 중인지 확인하세요.'
+        )
       }
 
       set({
@@ -419,7 +427,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
       const writeResult = await window.electronAPI.writeFile(path, currentFileData)
       if (!writeResult.success) {
-        throw new Error(writeResult.error || 'Failed to write file')
+        throw new Error(
+          writeResult.error ||
+            '파일을 저장하지 못했습니다. 다른 프로그램이 파일을 사용 중인지 확인하세요.'
+        )
       }
 
       set({
@@ -460,7 +471,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
       const result = await window.electronAPI.validate(currentFileData, get().filePath ?? undefined)
       if (!result.success) {
-        throw new Error(result.error || 'Validation failed')
+        throw new Error(result.error || '검증에 실패했습니다.')
       }
 
       set({
@@ -487,13 +498,13 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     try {
       const readResult = await window.electronAPI.readFile(path)
       if (!readResult.success) {
-        throw new Error(readResult.error || 'Failed to read comparison file')
+        throw new Error(readResult.error || '비교 파일을 읽지 못했습니다.')
       }
       const comparisonFileData = readResult.data!
 
       const parseResult = await window.electronAPI.parseDocument(comparisonFileData, path)
       if (!parseResult.success) {
-        throw new Error(parseResult.error || 'Failed to parse comparison file')
+        throw new Error(parseResult.error || '비교 파일을 분석하지 못했습니다.')
       }
 
       const comparisonDocumentData: DocumentData = parseResult.data

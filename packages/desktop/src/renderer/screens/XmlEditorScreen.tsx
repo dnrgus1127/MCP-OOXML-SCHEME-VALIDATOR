@@ -442,9 +442,14 @@ export function XmlEditorScreen({
       />
 
       {error && (
-        <div className="error-banner">
-          <span>{error}</span>
-          <button onClick={clearError}>×</button>
+        <div className="error-banner" role="alert">
+          <span className="error-banner-icon" aria-hidden>
+            ⚠
+          </span>
+          <span className="error-banner-message">{error}</span>
+          <button onClick={clearError} className="error-banner-close" aria-label="오류 메시지 닫기">
+            ×
+          </button>
         </div>
       )}
 
