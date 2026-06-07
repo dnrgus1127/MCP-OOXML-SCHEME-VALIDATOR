@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { explainValidationCode } from '../utils/validation-error-explainer'
+import { CloseButton } from './layout/CloseButton'
 
 interface ValidationError {
   code: string
@@ -99,9 +100,7 @@ function ValidationHeader({ isValidating, onRevalidate, onClose }: ValidationHea
           '다시 검증'
         )}
       </button>
-      <button onClick={onClose} className="close-btn" aria-label="검증 결과 닫기">
-        ×
-      </button>
+      <CloseButton onClick={onClose} ariaLabel="검증 결과 닫기" />
     </div>
   )
 }

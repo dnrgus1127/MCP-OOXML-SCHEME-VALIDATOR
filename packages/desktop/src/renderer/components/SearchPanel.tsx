@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { DocumentSearchResult } from '../stores/document'
+import { CloseButton } from './layout/CloseButton'
 
 interface SearchPanelProps {
   results: DocumentSearchResult | null
@@ -47,9 +48,7 @@ export function SearchPanel({
     <div className="search-panel">
       <div className="search-panel-header">
         <h3>문서 내 검색</h3>
-        <button onClick={onClose} className="close-btn" aria-label="검색 패널 닫기">
-          ×
-        </button>
+        <CloseButton onClick={onClose} ariaLabel="검색 패널 닫기" />
       </div>
 
       <form onSubmit={handleSubmit} className="search-panel-form">
