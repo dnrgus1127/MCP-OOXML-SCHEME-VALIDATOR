@@ -199,34 +199,38 @@ export function ValidationPanel({
 
           return (
             <div key={result.path} className={`validation-item-container ${tone}`}>
-              <div
-                className="validation-item"
-                onClick={() => {
-                  if (hasIssues) {
-                    toggleExpanded(result.path)
-                  } else {
-                    onNavigate(result.path)
-                  }
-                }}
-              >
-                <span className="item-icon">
-                  {tone === 'invalid' ? 'ERR' : tone === 'warning' ? 'WARN' : 'OK'}
-                </span>
-                <span className="item-path">{result.path}</span>
-                {hasIssues && (
-                  <span
-                    className={`item-issue-count${errorCount === 0 && warningCount > 0 ? ' warning-only' : ''}`}
-                  >
-                    {formatIssueCount(errorCount, warningCount)}
-                    <span className="expand-icon">{isExpanded ? '-' : '+'}</span>
+              <div className="validation-item">
+                <button
+                  type="button"
+                  className="validation-item-main"
+                  aria-expanded={hasIssues ? isExpanded : undefined}
+                  title={hasIssues ? (isExpanded ? '오류 접기' : '오류 펼치기') : '파트로 이동'}
+                  onClick={() => {
+                    if (hasIssues) {
+                      toggleExpanded(result.path)
+                    } else {
+                      onNavigate(result.path)
+                    }
+                  }}
+                >
+                  <span className="item-icon">
+                    {tone === 'invalid' ? 'ERR' : tone === 'warning' ? 'WARN' : 'OK'}
                   </span>
-                )}
+                  <span className="item-path">{result.path}</span>
+                  {hasIssues && (
+                    <span
+                      className={`item-issue-count${errorCount === 0 && warningCount > 0 ? ' warning-only' : ''}`}
+                    >
+                      {formatIssueCount(errorCount, warningCount)}
+                      <span className="expand-icon" aria-hidden>
+                        {isExpanded ? '-' : '+'}
+                      </span>
+                    </span>
+                  )}
+                </button>
                 <button
                   className="navigate-btn"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onNavigate(result.path)
-                  }}
+                  onClick={() => onNavigate(result.path)}
                   title="Go to part"
                 >
                   Go
