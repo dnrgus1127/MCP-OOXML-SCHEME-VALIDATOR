@@ -14,7 +14,7 @@ import { Toolbar } from '../components/Toolbar'
 import { ResizeHandle } from '../components/layout/ResizeHandle'
 import { ResizablePanelStack, type StackPanel } from '../components/layout/ResizablePanelStack'
 import { useSettingsStore } from '../stores/settings'
-import { matchesShortcut } from '../utils/shortcuts'
+import { matchesShortcut, normalizeShortcut } from '../utils/shortcuts'
 
 const SIDEBAR_MIN = 200
 const SIDEBAR_MAX = 480
@@ -428,6 +428,7 @@ export function XmlEditorScreen({
         onSaveAs={handleSaveAs}
         onValidate={handleValidate}
         validationEnabled={validationFeatureEnabled}
+        validateShortcut={normalizeShortcut(revalidateShortcut) ?? undefined}
         onOpenSettings={onOpenSettings}
         hasDocument={!!documentData}
         filePath={filePath}

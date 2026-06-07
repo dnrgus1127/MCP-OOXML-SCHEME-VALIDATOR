@@ -17,6 +17,14 @@ import { formatXml } from '../utils/formatXml'
 
 type PluginContextProvider = () => PluginContext | null
 
+// 플랫폼에 맞춘 단축키 힌트 텍스트 (버튼 title 표기용) (P2-2)
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform ?? '')
+const SHORTCUT = {
+  format: IS_MAC ? '⇧⌘F' : 'Ctrl+Shift+F',
+  foldAll: IS_MAC ? '⌘K ⌘0' : 'Ctrl+K Ctrl+0',
+  unfoldAll: IS_MAC ? '⌘K ⌘J' : 'Ctrl+K Ctrl+J',
+}
+
 export interface SchemaCursorContext {
   rawName: string
   localName: string
@@ -69,6 +77,8 @@ export function XmlEditor({
   // 프로그램적 setValue(파트 로드/전환)가 onChange를 발화해 false-dirty를
   // 만드는 것을 막는다. 실제 사용자 편집일 때만 onChange를 전달한다. (C1)
   const suppressChangeRef = useRef(false)
+  // Monaco 액션에서 최신 포맷 핸들러를 호출하기 위한 ref (P2-2)
+  const formatRef = useRef<() => void>(() => {})
 
   const [localContent, setLocalContent] = useState(() => formatXml(content))
   const [isMonacoReady, setIsMonacoReady] = useState(false)
@@ -199,6 +209,18 @@ export function XmlEditor({
         })
 
         emitCursorContext()
+
+        // 서식 정리 단축키 (⇧⌘F / Ctrl+Shift+F) — 명시적 사용자 액션 (P2-2)
+        editorRef.current.addAction({
+          id: 'ooxml.formatXml',
+          label: '서식 정리',
+          keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF],
+          contextMenuGroupId: 'modification',
+          contextMenuOrder: 1.5,
+          run: () => {
+            formatRef.current()
+          },
+        })
 
         hoverProviderRef.current = monaco.languages.registerHoverProvider('xml', {
           provideHover: async (model, position, token) => {
@@ -412,6 +434,9 @@ export function XmlEditor({
     }
   }
 
+  // Monaco 액션이 항상 최신 핸들러를 호출하도록 갱신 (P2-2)
+  formatRef.current = handleFormat
+
   const handleCollapseAll = () => {
     if (compareMode) return
     editorRef.current?.trigger('xml-editor', 'editor.foldAll', null)
@@ -449,6 +474,7 @@ export function XmlEditor({
             onClick={handleCollapseAll}
             className="editor-btn"
             disabled={!isMonacoReady || compareMode}
+            title={`전체 접기 (${SHORTCUT.foldAll})`}
           >
             전체 접기
           </button>
@@ -456,6 +482,7 @@ export function XmlEditor({
             onClick={handleExpandAll}
             className="editor-btn"
             disabled={!isMonacoReady || compareMode}
+            title={`전체 펼치기 (${SHORTCUT.unfoldAll})`}
           >
             전체 펼치기
           </button>
@@ -463,6 +490,7 @@ export function XmlEditor({
             onClick={handleFormat}
             className="editor-btn"
             disabled={(!isMonacoReady && !monacoLoadError) || compareMode}
+            title={`서식 정리 (${SHORTCUT.format})`}
           >
             서식 정리
           </button>

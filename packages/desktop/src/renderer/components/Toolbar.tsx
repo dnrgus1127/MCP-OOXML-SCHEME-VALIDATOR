@@ -7,6 +7,8 @@ interface ToolbarProps {
   onSaveAs: () => void
   onValidate: () => void
   validationEnabled?: boolean
+  /** 재검증 단축키 힌트 (정규화된 표기) */
+  validateShortcut?: string
   onOpenSettings?: () => void
   openLabel?: string
   hasDocument: boolean
@@ -30,6 +32,7 @@ export function Toolbar({
   onSaveAs,
   onValidate,
   validationEnabled = false,
+  validateShortcut,
   onOpenSettings,
   openLabel = '열기',
   hasDocument,
@@ -75,7 +78,11 @@ export function Toolbar({
               onClick={onValidate}
               className="toolbar-btn toolbar-btn--pre"
               disabled={writeDisabled}
-              title="개발 중인 Pre 검증 기능"
+              title={
+                validateShortcut
+                  ? `개발 중인 Pre 검증 기능 (${validateShortcut})`
+                  : '개발 중인 Pre 검증 기능'
+              }
             >
               ✓ 검증 <span className="toolbar-pre-badge">Pre</span>
             </button>
