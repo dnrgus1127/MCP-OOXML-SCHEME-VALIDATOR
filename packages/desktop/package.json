@@ -5,8 +5,12 @@
   "description": "OOXML Validator desktop application with XML editor",
   "main": "./dist/main/index.js",
   "scripts": {
+    "build:lsp": "pnpm --filter @ooxml-tools/lsp-server build",
+    "predev": "pnpm run build:lsp",
     "dev": "electron-vite dev",
+    "predev:debug": "pnpm run build:lsp",
     "dev:debug": "electron-vite dev -- --inspect-brk=5858",
+    "prebuild": "pnpm run build:lsp",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "package": "electron-builder --config electron-builder.yml",
