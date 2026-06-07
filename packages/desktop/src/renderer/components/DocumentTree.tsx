@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PartDiffStatus } from '../stores/document'
 
 interface PartInfo {
@@ -122,7 +122,10 @@ function getIcon(node: TreeNode): string {
   return '📄'
 }
 
-function getDocumentLabel(containerFormat: 'ooxml' | 'odf' | undefined, documentType: string): string {
+function getDocumentLabel(
+  containerFormat: 'ooxml' | 'odf' | undefined,
+  documentType: string
+): string {
   const prefix = containerFormat === 'odf' ? 'ODF' : 'OOXML'
 
   switch (documentType) {
@@ -162,59 +165,83 @@ function getDiffMarker(status: PartDiffStatus | undefined): string {
   }
 }
 
-interface TreeNodeComponentProps {
-  node: TreeNode
-  selectedPart: string | null
-  onSelectPart: (path: string) => void
-  depth: number
+/** 기본 펼침: 깊이 0,1의 디렉토리를 펼친 상태로 시작 (기존 동작 유지) */
+function defaultExpanded(nodes: TreeNode[]): Set<string> {
+  const expanded = new Set<string>()
+  const walk = (node: TreeNode, depth: number) => {
+    if (node.isDirectory && depth < 2) expanded.add(node.path)
+    node.children.forEach((child) => walk(child, depth + 1))
+  }
+  nodes.forEach((node) => walk(node, 0))
+  return expanded
 }
 
-function TreeNodeComponent({ node, selectedPart, onSelectPart, depth }: TreeNodeComponentProps) {
-  const [expanded, setExpanded] = useState(depth < 2)
+interface VisibleRow {
+  node: TreeNode
+  depth: number
+  parentPath: string | null
+}
+
+/** 펼침 상태를 반영해 화면에 보이는 노드를 평탄화 (키보드 탐색용) */
+function flattenVisible(nodes: TreeNode[], expanded: Set<string>): VisibleRow[] {
+  const rows: VisibleRow[] = []
+  const walk = (node: TreeNode, depth: number, parentPath: string | null) => {
+    rows.push({ node, depth, parentPath })
+    if (node.isDirectory && expanded.has(node.path)) {
+      node.children.forEach((child) => walk(child, depth + 1, node.path))
+    }
+  }
+  nodes.forEach((node) => walk(node, 0, null))
+  return rows
+}
+
+interface TreeRowProps {
+  row: VisibleRow
+  selectedPart: string | null
+  focusedPath: string | null
+  expanded: boolean
+  registerRef: (path: string, el: HTMLDivElement | null) => void
+  onActivate: (row: VisibleRow) => void
+  onFocusRow: (path: string) => void
+}
+
+function TreeRow({
+  row,
+  selectedPart,
+  focusedPath,
+  expanded,
+  registerRef,
+  onActivate,
+  onFocusRow,
+}: TreeRowProps) {
+  const { node, depth } = row
   const isSelected = node.path === selectedPart
   const isXml = node.part?.contentType.includes('xml')
-
-  const handleClick = () => {
-    if (node.isDirectory) {
-      setExpanded((current) => !current)
-      return
-    }
-
-    onSelectPart(node.path)
-  }
-
+  const isDisabled = !node.isDirectory && !isXml
   const marker = getDiffMarker(node.diffStatus)
 
   return (
-    <div className="tree-node">
-      <div
-        className={`tree-item ${isSelected ? 'selected' : ''} ${
-          !node.isDirectory && !isXml ? 'disabled' : ''
-        }`}
-        style={{ paddingLeft: `${depth * 16 + 8}px` }}
-        data-diff-status={node.diffStatus ?? undefined}
-        onClick={handleClick}
-      >
-        {node.isDirectory && <span className="expand-icon">{expanded ? '▼' : '▶'}</span>}
-        <span className="icon">{getIcon(node)}</span>
-        <span className="name">{node.name}</span>
-        {marker && <span className="diff-marker">{marker}</span>}
-        {node.part && <span className="size">{formatSize(node.part.size)}</span>}
-      </div>
-
-      {node.isDirectory && expanded && (
-        <div className="tree-children">
-          {node.children.map((child) => (
-            <TreeNodeComponent
-              key={child.path}
-              node={child}
-              selectedPart={selectedPart}
-              onSelectPart={onSelectPart}
-              depth={depth + 1}
-            />
-          ))}
-        </div>
-      )}
+    <div
+      ref={(el) => registerRef(node.path, el)}
+      className={`tree-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
+      style={{ paddingLeft: `${depth * 16 + 8}px` }}
+      data-diff-status={node.diffStatus ?? undefined}
+      role="treeitem"
+      aria-level={depth + 1}
+      aria-selected={node.isDirectory ? undefined : isSelected}
+      aria-expanded={node.isDirectory ? expanded : undefined}
+      aria-disabled={isDisabled || undefined}
+      tabIndex={node.path === focusedPath ? 0 : -1}
+      onClick={() => onActivate(row)}
+      onFocus={() => onFocusRow(node.path)}
+    >
+      {node.isDirectory && <span className="expand-icon">{expanded ? '▼' : '▶'}</span>}
+      <span className="icon" aria-hidden>
+        {getIcon(node)}
+      </span>
+      <span className="name">{node.name}</span>
+      {marker && <span className="diff-marker">{marker}</span>}
+      {node.part && <span className="size">{formatSize(node.part.size)}</span>}
     </div>
   )
 }
@@ -233,6 +260,138 @@ export function DocumentTree({
     [parts, comparisonParts, partDiffStatus]
   )
 
+  const [expanded, setExpanded] = useState<Set<string>>(() => defaultExpanded(tree))
+  const [focusedPath, setFocusedPath] = useState<string | null>(null)
+  const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  // 키보드 탐색으로 focusedPath가 바뀐 경우에만 DOM 포커스를 옮긴다(마운트 시 포커스 탈취 방지)
+  const pendingFocusRef = useRef(false)
+
+  // 문서(트리)가 바뀌면 기본 펼침으로 초기화
+  useEffect(() => {
+    setExpanded(defaultExpanded(tree))
+  }, [tree])
+
+  const visibleRows = useMemo(() => flattenVisible(tree, expanded), [tree, expanded])
+
+  // 로빙 tabindex의 기준점: 선택된 파트 → 첫 노드 순으로 보정
+  const activeFocusPath = useMemo(() => {
+    if (focusedPath && visibleRows.some((row) => row.node.path === focusedPath)) {
+      return focusedPath
+    }
+    if (selectedPart && visibleRows.some((row) => row.node.path === selectedPart)) {
+      return selectedPart
+    }
+    return visibleRows[0]?.node.path ?? null
+  }, [focusedPath, selectedPart, visibleRows])
+
+  const registerRef = useCallback((path: string, el: HTMLDivElement | null) => {
+    if (el) itemRefs.current.set(path, el)
+    else itemRefs.current.delete(path)
+  }, [])
+
+  // 키보드 탐색 후 실제 DOM 포커스 이동
+  useEffect(() => {
+    if (!pendingFocusRef.current || !focusedPath) return
+    pendingFocusRef.current = false
+    itemRefs.current.get(focusedPath)?.focus()
+  }, [focusedPath])
+
+  const moveFocus = useCallback((path: string) => {
+    pendingFocusRef.current = true
+    setFocusedPath(path)
+  }, [])
+
+  const toggleExpand = useCallback((path: string, next: boolean) => {
+    setExpanded((current) => {
+      const updated = new Set(current)
+      if (next) updated.add(path)
+      else updated.delete(path)
+      return updated
+    })
+  }, [])
+
+  const activate = useCallback(
+    (row: VisibleRow) => {
+      const { node } = row
+      if (node.isDirectory) {
+        toggleExpand(node.path, !expanded.has(node.path))
+        return
+      }
+      onSelectPart(node.path)
+    },
+    [expanded, onSelectPart, toggleExpand]
+  )
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (visibleRows.length === 0) return
+      const currentPath = activeFocusPath
+      const index = visibleRows.findIndex((row) => row.node.path === currentPath)
+      const currentRow = index >= 0 ? visibleRows[index] : undefined
+
+      switch (event.key) {
+        case 'ArrowDown': {
+          event.preventDefault()
+          const next = visibleRows[Math.min(visibleRows.length - 1, index + 1)]
+          if (next) moveFocus(next.node.path)
+          break
+        }
+        case 'ArrowUp': {
+          event.preventDefault()
+          const prev = visibleRows[Math.max(0, index - 1)]
+          if (prev) moveFocus(prev.node.path)
+          break
+        }
+        case 'ArrowRight': {
+          event.preventDefault()
+          if (!currentRow) break
+          if (currentRow.node.isDirectory) {
+            if (!expanded.has(currentRow.node.path)) {
+              toggleExpand(currentRow.node.path, true)
+            } else {
+              const first = visibleRows[index + 1]
+              if (first && first.parentPath === currentRow.node.path) {
+                moveFocus(first.node.path)
+              }
+            }
+          }
+          break
+        }
+        case 'ArrowLeft': {
+          event.preventDefault()
+          if (!currentRow) break
+          if (currentRow.node.isDirectory && expanded.has(currentRow.node.path)) {
+            toggleExpand(currentRow.node.path, false)
+          } else if (currentRow.parentPath) {
+            moveFocus(currentRow.parentPath)
+          }
+          break
+        }
+        case 'Home': {
+          event.preventDefault()
+          const first = visibleRows[0]
+          if (first) moveFocus(first.node.path)
+          break
+        }
+        case 'End': {
+          event.preventDefault()
+          const last = visibleRows[visibleRows.length - 1]
+          if (last) moveFocus(last.node.path)
+          break
+        }
+        case 'Enter':
+        case ' ': {
+          event.preventDefault()
+          if (currentRow) activate(currentRow)
+          break
+        }
+        default:
+          break
+      }
+    },
+    [activate, activeFocusPath, expanded, moveFocus, toggleExpand, visibleRows]
+  )
+
   const partCount = comparisonParts
     ? new Set([...Object.keys(parts), ...Object.keys(comparisonParts)]).size
     : Object.keys(parts).length
@@ -244,14 +403,22 @@ export function DocumentTree({
         <span className="part-count">{partCount} parts</span>
       </div>
 
-      <div className="tree-content">
-        {tree.map((node) => (
-          <TreeNodeComponent
-            key={node.path}
-            node={node}
+      <div
+        className="tree-content"
+        role="tree"
+        aria-label={`${getDocumentLabel(containerFormat, documentType)} 파트 트리`}
+        onKeyDown={handleKeyDown}
+      >
+        {visibleRows.map((row) => (
+          <TreeRow
+            key={row.node.path}
+            row={row}
             selectedPart={selectedPart}
-            onSelectPart={onSelectPart}
-            depth={0}
+            focusedPath={activeFocusPath}
+            expanded={expanded.has(row.node.path)}
+            registerRef={registerRef}
+            onActivate={activate}
+            onFocusRow={setFocusedPath}
           />
         ))}
       </div>

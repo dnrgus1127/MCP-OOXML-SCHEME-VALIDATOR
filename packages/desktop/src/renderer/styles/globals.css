@@ -139,6 +139,11 @@ body {
   cursor: not-allowed;
 }
 
+.toolbar-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .toolbar-btn--dirty {
   border-color: var(--warning);
   color: var(--warning);
@@ -307,6 +312,11 @@ body {
 .tree-item.disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.tree-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .expand-icon {
