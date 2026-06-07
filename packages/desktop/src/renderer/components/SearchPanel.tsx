@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { DocumentSearchResult } from '../stores/document'
+import { CloseButton } from './layout/CloseButton'
 
 interface SearchPanelProps {
   results: DocumentSearchResult | null
@@ -46,10 +47,8 @@ export function SearchPanel({
   return (
     <div className="search-panel">
       <div className="search-panel-header">
-        <h3>Search in Document</h3>
-        <button onClick={onClose} className="close-btn" aria-label="Close search panel">
-          x
-        </button>
+        <h3>문서 내 검색</h3>
+        <CloseButton onClick={onClose} ariaLabel="검색 패널 닫기" />
       </div>
 
       <form onSubmit={handleSubmit} className="search-panel-form">
@@ -57,27 +56,27 @@ export function SearchPanel({
           ref={inputRef}
           className="search-panel-input"
           type="text"
-          placeholder="Search text..."
+          placeholder="검색어 입력…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoFocus
         />
         <button type="submit" className="search-panel-btn" disabled={isSearching || !query.trim()}>
-          {isSearching ? '...' : 'Search'}
+          {isSearching ? '…' : '검색'}
         </button>
         {results !== null && (
           <button type="button" className="search-panel-clear-btn" onClick={handleClear}>
-            Clear
+            지우기
           </button>
         )}
       </form>
 
       {results !== null && (
         <div className="search-panel-results">
-          <div className="search-panel-summary">
+          <div className="search-panel-summary" role="status" aria-live="polite">
             {results.totalMatches === 0
-              ? 'No matches found'
-              : `${results.totalMatches} match${results.totalMatches !== 1 ? 'es' : ''} in ${results.results.length} part${results.results.length !== 1 ? 's' : ''}`}
+              ? '일치 항목이 없습니다'
+              : `${results.totalMatches}건 일치 · ${results.results.length}개 파트`}
           </div>
 
           <div className="search-panel-list">
@@ -98,9 +97,9 @@ export function SearchPanel({
                         e.stopPropagation()
                         onNavigate(partResult.partPath)
                       }}
-                      title="Go to part"
+                      title="파트로 이동"
                     >
-                      Go
+                      이동
                     </button>
                   </div>
 
@@ -111,9 +110,9 @@ export function SearchPanel({
                           key={idx}
                           className="search-match-item"
                           onClick={() => onNavigate(partResult.partPath)}
-                          title={`Line ${match.line}`}
+                          title={`${match.line}줄`}
                         >
-                          <span className="search-match-line">L{match.line}</span>
+                          <span className="search-match-line">{match.line}줄</span>
                           <span className="search-match-content">{match.lineContent}</span>
                         </div>
                       ))}

@@ -5,6 +5,7 @@ import {
   type SchemaElementDescription,
   type SchemaPathStep,
 } from '../schema/schemaInspector'
+import { CloseButton } from './layout/CloseButton'
 
 export interface SchemaInspectorQuery {
   rawName: string
@@ -220,14 +221,7 @@ export function SchemaInspectorPanel({ query, documentType, onClose }: SchemaIns
     <section className="schema-inspector-panel" aria-labelledby="schema-inspector-title">
       <div className="schema-inspector-panel-header">
         <h3 id="schema-inspector-title">요소 스키마 정보</h3>
-        <button
-          type="button"
-          className="schema-inspector-close"
-          onClick={onClose}
-          aria-label="요소 스키마 패널 닫기"
-        >
-          ×
-        </button>
+        <CloseButton onClick={onClose} ariaLabel="요소 스키마 패널 닫기" />
       </div>
 
       {state.status === 'idle' ? (

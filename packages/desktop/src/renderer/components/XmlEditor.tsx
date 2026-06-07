@@ -13,8 +13,17 @@ import {
 } from '../schema/cursor-context'
 import { lookupSchemaElementByPath } from '../schema/schemaInspector'
 import { formatSchemaHoverMarkdown } from '../schema/describe-format'
+import { formatXml } from '../utils/formatXml'
 
 type PluginContextProvider = () => PluginContext | null
+
+// 플랫폼에 맞춘 단축키 힌트 텍스트 (버튼 title 표기용) (P2-2)
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform ?? '')
+const SHORTCUT = {
+  format: IS_MAC ? '⇧⌘F' : 'Ctrl+Shift+F',
+  foldAll: IS_MAC ? '⌘K ⌘0' : 'Ctrl+K Ctrl+0',
+  unfoldAll: IS_MAC ? '⌘K ⌘J' : 'Ctrl+K Ctrl+J',
+}
 
 export interface SchemaCursorContext {
   rawName: string
@@ -41,53 +50,6 @@ interface XmlEditorProps {
   onSchemaContextChange?: (context: SchemaCursorContext | null) => void
 }
 
-// Format XML with proper indentation
-function formatXml(xml: string): string {
-  try {
-    let formatted = xml
-      // Remove existing whitespace between tags
-      .replace(/>\s+</g, '><')
-      // Add newlines
-      .replace(/></g, '>\n<')
-
-    // Indent
-    const lines = formatted.split('\n')
-    let indent = 0
-    const indentedLines = lines.map((line) => {
-      const trimmed = line.trim()
-      if (!trimmed) return ''
-
-      const isClosingTag = trimmed.startsWith('</')
-      const isOpeningTag =
-        trimmed.startsWith('<') &&
-        !isClosingTag &&
-        !trimmed.startsWith('<?') &&
-        !trimmed.startsWith('<!')
-      const isSelfClosingTag = trimmed.endsWith('/>')
-      const isInlineTag = isOpeningTag && trimmed.includes('</')
-
-      // Decrease indent for closing tags
-      if (isClosingTag) {
-        indent = Math.max(0, indent - 1)
-      }
-
-      const indentedLine = '  '.repeat(indent) + trimmed
-
-      // Increase indent only for true container opening tags.
-      // Inline tags like <AppVersion>1.0</AppVersion> should stay on the same level.
-      if (isOpeningTag && !isSelfClosingTag && !isInlineTag) {
-        indent++
-      }
-
-      return indentedLine
-    })
-
-    return indentedLines.join('\n')
-  } catch {
-    return xml
-  }
-}
-
 export function XmlEditor({
   content,
   partPath,
@@ -112,6 +74,11 @@ export function XmlEditor({
   const onSchemaContextChangeRef =
     useRef<XmlEditorProps['onSchemaContextChange']>(onSchemaContextChange)
   const cursorContextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 프로그램적 setValue(파트 로드/전환)가 onChange를 발화해 false-dirty를
+  // 만드는 것을 막는다. 실제 사용자 편집일 때만 onChange를 전달한다. (C1)
+  const suppressChangeRef = useRef(false)
+  // Monaco 액션에서 최신 포맷 핸들러를 호출하기 위한 ref (P2-2)
+  const formatRef = useRef<() => void>(() => {})
 
   const [localContent, setLocalContent] = useState(() => formatXml(content))
   const [isMonacoReady, setIsMonacoReady] = useState(false)
@@ -230,7 +197,10 @@ export function XmlEditor({
         editorRef.current.onDidChangeModelContent(() => {
           const value = editorRef.current?.getValue() ?? ''
           setLocalContent(value)
-          onChange(value)
+          // 프로그램적 갱신(파트 전환/포맷 재적용)은 dirty로 취급하지 않는다.
+          if (!suppressChangeRef.current) {
+            onChange(value)
+          }
           emitCursorContext()
         })
 
@@ -239,6 +209,18 @@ export function XmlEditor({
         })
 
         emitCursorContext()
+
+        // 서식 정리 단축키 (⇧⌘F / Ctrl+Shift+F) — 명시적 사용자 액션 (P2-2)
+        editorRef.current.addAction({
+          id: 'ooxml.formatXml',
+          label: '서식 정리',
+          keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF],
+          contextMenuGroupId: 'modification',
+          contextMenuOrder: 1.5,
+          run: () => {
+            formatRef.current()
+          },
+        })
 
         hoverProviderRef.current = monaco.languages.registerHoverProvider('xml', {
           provideHover: async (model, position, token) => {
@@ -425,7 +407,13 @@ export function XmlEditor({
     setLocalContent(formatted)
 
     if (editorRef.current && editorRef.current.getValue() !== formatted) {
-      editorRef.current.setValue(formatted)
+      // 파트 로드/전환에 의한 프로그램적 갱신 — onChange를 억제해 false-dirty 방지
+      suppressChangeRef.current = true
+      try {
+        editorRef.current.setValue(formatted)
+      } finally {
+        suppressChangeRef.current = false
+      }
       editorRef.current.trigger('xml-editor', 'editor.unfoldAll', null)
     }
   }, [content, comparisonContent, partPath, compareMode])
@@ -434,11 +422,20 @@ export function XmlEditor({
     if (compareMode) return
     const result = formatXml(editorRef.current?.getValue() ?? localContent)
     setLocalContent(result)
+    // 명시적 사용자 액션이므로 dirty로 한 번만 반영한다.
     onChange(result)
     if (editorRef.current && editorRef.current.getValue() !== result) {
-      editorRef.current.setValue(result)
+      suppressChangeRef.current = true
+      try {
+        editorRef.current.setValue(result)
+      } finally {
+        suppressChangeRef.current = false
+      }
     }
   }
+
+  // Monaco 액션이 항상 최신 핸들러를 호출하도록 갱신 (P2-2)
+  formatRef.current = handleFormat
 
   const handleCollapseAll = () => {
     if (compareMode) return
@@ -461,14 +458,14 @@ export function XmlEditor({
           {compareMode ? (
             <span className="compare-labels">
               <span className="compare-label compare-label--primary">
-                ◀ {primaryLabel ?? 'Primary'}
+                ◀ {primaryLabel ?? '기준'}
               </span>
               <span className="compare-label compare-label--comparison">
-                {comparisonLabel ?? 'Comparison'} ▶
+                {comparisonLabel ?? '비교'} ▶
               </span>
             </span>
           ) : null}
-          <span className="editor-theme-badge" aria-label={`Current editor theme: ${editorTheme}`}>
+          <span className="editor-theme-badge" aria-label={`현재 에디터 테마: ${editorTheme}`}>
             {getEditorThemeLabel(editorTheme)}
           </span>
         </div>
@@ -477,6 +474,7 @@ export function XmlEditor({
             onClick={handleCollapseAll}
             className="editor-btn"
             disabled={!isMonacoReady || compareMode}
+            title={`전체 접기 (${SHORTCUT.foldAll})`}
           >
             전체 접기
           </button>
@@ -484,6 +482,7 @@ export function XmlEditor({
             onClick={handleExpandAll}
             className="editor-btn"
             disabled={!isMonacoReady || compareMode}
+            title={`전체 펼치기 (${SHORTCUT.unfoldAll})`}
           >
             전체 펼치기
           </button>
@@ -491,8 +490,9 @@ export function XmlEditor({
             onClick={handleFormat}
             className="editor-btn"
             disabled={(!isMonacoReady && !monacoLoadError) || compareMode}
+            title={`서식 정리 (${SHORTCUT.format})`}
           >
-            Format
+            서식 정리
           </button>
         </div>
       </div>

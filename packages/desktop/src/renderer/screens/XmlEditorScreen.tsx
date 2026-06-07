@@ -11,8 +11,19 @@ import {
 import { SchemaInspectorPanel, type SchemaInspectorQuery } from '../components/SchemaInspectorPanel'
 import { SearchPanel } from '../components/SearchPanel'
 import { Toolbar } from '../components/Toolbar'
+import { ResizeHandle } from '../components/layout/ResizeHandle'
+import { ResizablePanelStack, type StackPanel } from '../components/layout/ResizablePanelStack'
 import { useSettingsStore } from '../stores/settings'
-import { matchesShortcut } from '../utils/shortcuts'
+import { matchesShortcut, normalizeShortcut } from '../utils/shortcuts'
+
+const SIDEBAR_MIN = 200
+const SIDEBAR_MAX = 480
+const RIGHT_PANEL_MIN = 280
+const RIGHT_PANEL_MAX = 640
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
 
 interface XmlEditorScreenProps {
   onNavigateHome: () => void
@@ -40,6 +51,7 @@ export function XmlEditorScreen({
     partContent,
     validationResults,
     isLoading,
+    isValidating,
     error,
     setFilePath,
     shouldWarnBeforeOverwrite,
@@ -74,6 +86,8 @@ export function XmlEditorScreen({
   const [showSearch, setShowSearch] = useState(false)
   const [showInspector, setShowInspector] = useState(true)
   const [cursorContext, setCursorContext] = useState<SchemaCursorContext | null>(null)
+  const [sidebarWidth, setSidebarWidth] = useState(280)
+  const [rightPanelWidth, setRightPanelWidth] = useState(320)
 
   const [schemaReferenceSummary, setSchemaReferenceSummary] =
     useState<OoxmlSchemaReferenceSummary | null>(null)
@@ -289,6 +303,9 @@ export function XmlEditorScreen({
     setShowValidation(true)
   }
 
+  // 스키마 참조 분석은 문서 단위 정보(사용 네임스페이스/XSD)라 키 입력마다 갱신할
+  // 필요가 없다. 편집 중 전체 문서를 재인코딩·재분석하던 부담을 없애고, fileData가
+  // 갱신되는 시점(로드/저장/파트 전환 시 편집 반영)에만 분석한다. (P2-3)
   useEffect(() => {
     if (!fileData || !documentData || documentData.containerFormat !== 'ooxml') {
       setSchemaReferenceSummary(null)
@@ -302,20 +319,7 @@ export function XmlEditorScreen({
 
     const timeout = window.setTimeout(async () => {
       try {
-        let base64Data = fileData
-
-        if (modifiedContent !== null && selectedPart) {
-          const updated = await window.electronAPI.updatePart(
-            fileData,
-            selectedPart,
-            modifiedContent
-          )
-          if (updated.success && updated.data) {
-            base64Data = updated.data
-          }
-        }
-
-        const result = await window.electronAPI.analyzeSchemaReferences(base64Data)
+        const result = await window.electronAPI.analyzeSchemaReferences(fileData)
         if (cancelled) return
 
         if (!result.success) {
@@ -342,17 +346,79 @@ export function XmlEditorScreen({
       cancelled = true
       window.clearTimeout(timeout)
     }
-  }, [documentData, fileData, modifiedContent, selectedPart])
+  }, [documentData, fileData])
+
+  const rightPanels: StackPanel[] = []
+  if (documentData) {
+    if (showSearch) {
+      rightPanels.push({
+        key: 'search',
+        label: '검색',
+        node: (
+          <SearchPanel
+            results={searchResults}
+            isSearching={isSearching}
+            onSearch={(q) => void searchDocument(q)}
+            onClear={clearSearch}
+            onNavigate={handleSelectPart}
+            onClose={() => setShowSearch(false)}
+          />
+        ),
+      })
+    }
+    if (validationFeatureEnabled && showValidation) {
+      rightPanels.push({
+        key: 'validation',
+        label: '검증 결과',
+        node: (
+          <ValidationPanel
+            results={validationResults}
+            isValidating={isValidating}
+            onClose={() => setShowValidation(false)}
+            onNavigate={handleSelectPart}
+            onRevalidate={handleValidate}
+          />
+        ),
+      })
+    }
+    if (isOoxml && showInspector && !isCompareMode) {
+      rightPanels.push({
+        key: 'inspector',
+        label: '스키마 인스펙터',
+        node: (
+          <SchemaInspectorPanel
+            query={inspectorQuery}
+            documentType={documentData.documentType}
+            onClose={() => setShowInspector(false)}
+          />
+        ),
+      })
+    }
+    if (documentData.containerFormat === 'ooxml') {
+      rightPanels.push({
+        key: 'schemaRef',
+        label: '스키마 참조',
+        node: (
+          <SchemaReferencePanel
+            summary={schemaReferenceSummary}
+            isLoading={isSchemaReferenceLoading}
+            error={schemaReferenceError}
+          />
+        ),
+      })
+    }
+  }
 
   return (
     <>
       <Toolbar
         onOpenFile={() => void handleChangeFile()}
-        openLabel={documentData ? 'Change File' : 'Open File'}
+        openLabel={documentData ? '파일 변경' : '파일 열기'}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
         onValidate={handleValidate}
         validationEnabled={validationFeatureEnabled}
+        validateShortcut={normalizeShortcut(revalidateShortcut) ?? undefined}
         onOpenSettings={onOpenSettings}
         hasDocument={!!documentData}
         filePath={filePath}
@@ -367,9 +433,14 @@ export function XmlEditorScreen({
       />
 
       {error && (
-        <div className="error-banner">
-          <span>{error}</span>
-          <button onClick={clearError}>×</button>
+        <div className="error-banner" role="alert">
+          <span className="error-banner-icon" aria-hidden>
+            ⚠
+          </span>
+          <span className="error-banner-message">{error}</span>
+          <button onClick={clearError} className="error-banner-close" aria-label="오류 메시지 닫기">
+            ×
+          </button>
         </div>
       )}
 
@@ -377,12 +448,12 @@ export function XmlEditorScreen({
         {!documentData ? (
           <div className="welcome">
             <h1>OOXML Validator</h1>
-            <p>Open an OOXML or ODF document (xlsx, docx, pptx, odt, ods, odp) to start</p>
-            <button onClick={() => void handleChangeFile()}>Open File</button>
+            <p>OOXML 또는 ODF 문서(xlsx, docx, pptx, odt, ods, odp)를 열어 시작하세요</p>
+            <button onClick={() => void handleChangeFile()}>파일 열기</button>
           </div>
         ) : (
           <>
-            <aside className="sidebar">
+            <aside className="sidebar" style={{ width: sidebarWidth }}>
               <DocumentTree
                 containerFormat={documentData.containerFormat}
                 documentType={documentData.documentType}
@@ -393,6 +464,14 @@ export function XmlEditorScreen({
                 partDiffStatus={isCompareMode ? partDiffStatus : undefined}
               />
             </aside>
+
+            <ResizeHandle
+              orientation="vertical"
+              ariaLabel="사이드바 너비 조절"
+              onResize={(delta) =>
+                setSidebarWidth((width) => clamp(width + delta, SIDEBAR_MIN, SIDEBAR_MAX))
+              }
+            />
 
             <main className="editor-container">
               {selectedPart && partContent !== null ? (
@@ -412,55 +491,28 @@ export function XmlEditorScreen({
                   onSchemaContextChange={isOoxml && !isCompareMode ? setCursorContext : undefined}
                 />
               ) : isLoading ? (
-                <div className="loading">Loading...</div>
+                <div className="loading">불러오는 중…</div>
               ) : (
-                <div className="placeholder">Select a part from the tree to view its content</div>
+                <div className="placeholder">트리에서 파트를 선택하면 내용이 표시됩니다</div>
               )}
             </main>
 
-            <aside className="right-panels">
-              {showSearch && (
-                <div className="search-panel-wrapper">
-                  <SearchPanel
-                    results={searchResults}
-                    isSearching={isSearching}
-                    onSearch={(q) => void searchDocument(q)}
-                    onClear={clearSearch}
-                    onNavigate={handleSelectPart}
-                    onClose={() => setShowSearch(false)}
-                  />
-                </div>
-              )}
-
-              {validationFeatureEnabled && showValidation ? (
-                <div className="validation-panel">
-                  <ValidationPanel
-                    results={validationResults}
-                    onClose={() => setShowValidation(false)}
-                    onNavigate={handleSelectPart}
-                    onRevalidate={handleValidate}
-                  />
-                </div>
-              ) : null}
-
-              {isOoxml && showInspector && !isCompareMode ? (
-                <div className="schema-inspector-wrapper">
-                  <SchemaInspectorPanel
-                    query={inspectorQuery}
-                    documentType={documentData.documentType}
-                    onClose={() => setShowInspector(false)}
-                  />
-                </div>
-              ) : null}
-
-              {documentData.containerFormat === 'ooxml' ? (
-                <SchemaReferencePanel
-                  summary={schemaReferenceSummary}
-                  isLoading={isSchemaReferenceLoading}
-                  error={schemaReferenceError}
+            {rightPanels.length > 0 && (
+              <>
+                <ResizeHandle
+                  orientation="vertical"
+                  ariaLabel="우측 패널 너비 조절"
+                  onResize={(delta) =>
+                    setRightPanelWidth((width) =>
+                      clamp(width - delta, RIGHT_PANEL_MIN, RIGHT_PANEL_MAX)
+                    )
+                  }
                 />
-              ) : null}
-            </aside>
+                <aside className="right-panels" style={{ width: rightPanelWidth }}>
+                  <ResizablePanelStack panels={rightPanels} />
+                </aside>
+              </>
+            )}
           </>
         )}
       </div>

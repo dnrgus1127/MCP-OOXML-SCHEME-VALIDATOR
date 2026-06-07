@@ -85,7 +85,12 @@ export function isOriginalDocumentPath(
 function mapDocumentTypeToLspKind(documentType: string | undefined): PackageKind | null {
   if (!documentType) return null
   const value = documentType.toLowerCase()
-  if (value === 'xlsx' || value === 'spreadsheet' || value.includes('spreadsheet') || value.includes('sml'))
+  if (
+    value === 'xlsx' ||
+    value === 'spreadsheet' ||
+    value.includes('spreadsheet') ||
+    value.includes('sml')
+  )
     return 'xlsx'
   if (
     value === 'docx' ||
@@ -95,13 +100,19 @@ function mapDocumentTypeToLspKind(documentType: string | undefined): PackageKind
     value.includes('wml')
   )
     return 'docx'
-  if (value === 'pptx' || value === 'presentation' || value.includes('presentation') || value.includes('pml'))
+  if (
+    value === 'pptx' ||
+    value === 'presentation' ||
+    value.includes('presentation') ||
+    value.includes('pml')
+  )
     return 'pptx'
   return null
 }
 
 function isXmlPart(partPath: string, contentType: string | undefined): boolean {
-  if (partPath.toLowerCase().endsWith('.xml') || partPath.toLowerCase().endsWith('.rels')) return true
+  if (partPath.toLowerCase().endsWith('.xml') || partPath.toLowerCase().endsWith('.rels'))
+    return true
   if (!contentType) return false
   return contentType.includes('xml')
 }
@@ -164,6 +175,7 @@ interface DocumentState {
   modifiedContent: string | null
   validationResults: ValidationResult | null
   isLoading: boolean
+  isValidating: boolean
   error: string | null
 
   // Comparison document state
@@ -205,6 +217,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   modifiedContent: null,
   validationResults: null,
   isLoading: false,
+  isValidating: false,
   error: null,
 
   isCompareMode: false,
@@ -231,7 +244,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       // Read file
       const readResult = await window.electronAPI.readFile(path)
       if (!readResult.success) {
-        throw new Error(readResult.error || 'Failed to read file')
+        throw new Error(
+          readResult.error ||
+            '파일을 읽지 못했습니다. 파일이 존재하고 접근 권한이 있는지 확인하세요.'
+        )
       }
 
       const fileData = readResult.data!
@@ -239,7 +255,9 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       // Parse document
       const parseResult = await window.electronAPI.parseDocument(fileData, path)
       if (!parseResult.success) {
-        throw new Error(parseResult.error || 'Failed to parse document')
+        throw new Error(
+          parseResult.error || '문서를 분석하지 못했습니다. 지원되는 OOXML/ODF 형식인지 확인하세요.'
+        )
       }
 
       set({
@@ -297,16 +315,11 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
       const primaryHas = fresh.documentData?.parts[partPath] !== undefined
       const comparisonHas =
-        fresh.isCompareMode &&
-        fresh.comparisonDocumentData?.parts[partPath] !== undefined
+        fresh.isCompareMode && fresh.comparisonDocumentData?.parts[partPath] !== undefined
 
       const [primaryResult, comparisonResult] = await Promise.all([
         primaryHas
-          ? window.electronAPI.getPart(
-              currentFileData,
-              partPath,
-              fresh.filePath ?? undefined
-            )
+          ? window.electronAPI.getPart(currentFileData, partPath, fresh.filePath ?? undefined)
           : Promise.resolve(null),
         comparisonHas && fresh.comparisonFileData
           ? window.electronAPI.getPart(
@@ -318,18 +331,16 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       ])
 
       if (primaryResult && !primaryResult.success) {
-        throw new Error(primaryResult.error || 'Failed to get part content')
+        throw new Error(primaryResult.error || '파트 내용을 불러오지 못했습니다.')
       }
       if (comparisonResult && !comparisonResult.success) {
-        throw new Error(comparisonResult.error || 'Failed to get comparison part content')
+        throw new Error(comparisonResult.error || '비교 파일의 파트 내용을 불러오지 못했습니다.')
       }
 
       set({
         selectedPart: partPath,
         partContent: primaryResult?.data ?? '',
-        comparisonPartContent: fresh.isCompareMode
-          ? (comparisonResult?.data ?? '')
-          : null,
+        comparisonPartContent: fresh.isCompareMode ? (comparisonResult?.data ?? '') : null,
         modifiedContent: null,
         isLoading: false,
       })
@@ -374,7 +385,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       // Write to file
       const writeResult = await window.electronAPI.writeFile(path, currentFileData)
       if (!writeResult.success) {
-        throw new Error(writeResult.error || 'Failed to write file')
+        throw new Error(
+          writeResult.error ||
+            '파일을 저장하지 못했습니다. 다른 프로그램이 파일을 사용 중인지 확인하세요.'
+        )
       }
 
       set({
@@ -413,7 +427,10 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
       const writeResult = await window.electronAPI.writeFile(path, currentFileData)
       if (!writeResult.success) {
-        throw new Error(writeResult.error || 'Failed to write file')
+        throw new Error(
+          writeResult.error ||
+            '파일을 저장하지 못했습니다. 다른 프로그램이 파일을 사용 중인지 확인하세요.'
+        )
       }
 
       set({
@@ -434,7 +451,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     const { fileData, modifiedContent, selectedPart } = get()
     if (!fileData) return
 
-    set({ error: null })
+    set({ error: null, isValidating: true })
 
     try {
       let currentFileData = fileData
@@ -452,12 +469,9 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         }
       }
 
-      const result = await window.electronAPI.validate(
-        currentFileData,
-        get().filePath ?? undefined
-      )
+      const result = await window.electronAPI.validate(currentFileData, get().filePath ?? undefined)
       if (!result.success) {
-        throw new Error(result.error || 'Validation failed')
+        throw new Error(result.error || '검증에 실패했습니다.')
       }
 
       set({
@@ -467,6 +481,8 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       set({
         error: error instanceof Error ? error.message : String(error),
       })
+    } finally {
+      set({ isValidating: false })
     }
   },
 
@@ -482,13 +498,13 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     try {
       const readResult = await window.electronAPI.readFile(path)
       if (!readResult.success) {
-        throw new Error(readResult.error || 'Failed to read comparison file')
+        throw new Error(readResult.error || '비교 파일을 읽지 못했습니다.')
       }
       const comparisonFileData = readResult.data!
 
       const parseResult = await window.electronAPI.parseDocument(comparisonFileData, path)
       if (!parseResult.success) {
-        throw new Error(parseResult.error || 'Failed to parse comparison file')
+        throw new Error(parseResult.error || '비교 파일을 분석하지 못했습니다.')
       }
 
       const comparisonDocumentData: DocumentData = parseResult.data
@@ -557,11 +573,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
     set({ isSearching: true })
     try {
-      const result = await window.electronAPI.searchDocument(
-        fileData,
-        query,
-        filePath ?? undefined
-      )
+      const result = await window.electronAPI.searchDocument(fileData, query, filePath ?? undefined)
       if (result.success) {
         set({ searchResults: result.data, isSearching: false })
       } else {
@@ -585,6 +597,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       modifiedContent: null,
       validationResults: null,
       isLoading: false,
+      isValidating: false,
       error: null,
       isCompareMode: false,
       comparisonFilePath: null,
@@ -613,11 +626,7 @@ async function comparePartOnce(partPath: string): Promise<void> {
 
   try {
     const [primaryResult, comparisonResult] = await Promise.all([
-      window.electronAPI.getPart(
-        state.fileData,
-        partPath,
-        state.filePath ?? undefined
-      ),
+      window.electronAPI.getPart(state.fileData, partPath, state.filePath ?? undefined),
       window.electronAPI.getPart(
         state.comparisonFileData,
         partPath,
