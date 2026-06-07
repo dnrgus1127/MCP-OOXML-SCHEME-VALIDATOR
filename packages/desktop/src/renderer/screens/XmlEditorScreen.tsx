@@ -11,8 +11,19 @@ import {
 import { SchemaInspectorPanel, type SchemaInspectorQuery } from '../components/SchemaInspectorPanel'
 import { SearchPanel } from '../components/SearchPanel'
 import { Toolbar } from '../components/Toolbar'
+import { ResizeHandle } from '../components/layout/ResizeHandle'
+import { ResizablePanelStack, type StackPanel } from '../components/layout/ResizablePanelStack'
 import { useSettingsStore } from '../stores/settings'
 import { matchesShortcut } from '../utils/shortcuts'
+
+const SIDEBAR_MIN = 200
+const SIDEBAR_MAX = 480
+const RIGHT_PANEL_MIN = 280
+const RIGHT_PANEL_MAX = 640
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
 
 interface XmlEditorScreenProps {
   onNavigateHome: () => void
@@ -75,6 +86,8 @@ export function XmlEditorScreen({
   const [showSearch, setShowSearch] = useState(false)
   const [showInspector, setShowInspector] = useState(true)
   const [cursorContext, setCursorContext] = useState<SchemaCursorContext | null>(null)
+  const [sidebarWidth, setSidebarWidth] = useState(280)
+  const [rightPanelWidth, setRightPanelWidth] = useState(320)
 
   const [schemaReferenceSummary, setSchemaReferenceSummary] =
     useState<OoxmlSchemaReferenceSummary | null>(null)
@@ -345,6 +358,67 @@ export function XmlEditorScreen({
     }
   }, [documentData, fileData, modifiedContent, selectedPart])
 
+  const rightPanels: StackPanel[] = []
+  if (documentData) {
+    if (showSearch) {
+      rightPanels.push({
+        key: 'search',
+        label: '검색',
+        node: (
+          <SearchPanel
+            results={searchResults}
+            isSearching={isSearching}
+            onSearch={(q) => void searchDocument(q)}
+            onClear={clearSearch}
+            onNavigate={handleSelectPart}
+            onClose={() => setShowSearch(false)}
+          />
+        ),
+      })
+    }
+    if (validationFeatureEnabled && showValidation) {
+      rightPanels.push({
+        key: 'validation',
+        label: '검증 결과',
+        node: (
+          <ValidationPanel
+            results={validationResults}
+            isValidating={isValidating}
+            onClose={() => setShowValidation(false)}
+            onNavigate={handleSelectPart}
+            onRevalidate={handleValidate}
+          />
+        ),
+      })
+    }
+    if (isOoxml && showInspector && !isCompareMode) {
+      rightPanels.push({
+        key: 'inspector',
+        label: '스키마 인스펙터',
+        node: (
+          <SchemaInspectorPanel
+            query={inspectorQuery}
+            documentType={documentData.documentType}
+            onClose={() => setShowInspector(false)}
+          />
+        ),
+      })
+    }
+    if (documentData.containerFormat === 'ooxml') {
+      rightPanels.push({
+        key: 'schemaRef',
+        label: '스키마 참조',
+        node: (
+          <SchemaReferencePanel
+            summary={schemaReferenceSummary}
+            isLoading={isSchemaReferenceLoading}
+            error={schemaReferenceError}
+          />
+        ),
+      })
+    }
+  }
+
   return (
     <>
       <Toolbar
@@ -383,7 +457,7 @@ export function XmlEditorScreen({
           </div>
         ) : (
           <>
-            <aside className="sidebar">
+            <aside className="sidebar" style={{ width: sidebarWidth }}>
               <DocumentTree
                 containerFormat={documentData.containerFormat}
                 documentType={documentData.documentType}
@@ -394,6 +468,14 @@ export function XmlEditorScreen({
                 partDiffStatus={isCompareMode ? partDiffStatus : undefined}
               />
             </aside>
+
+            <ResizeHandle
+              orientation="vertical"
+              ariaLabel="사이드바 너비 조절"
+              onResize={(delta) =>
+                setSidebarWidth((width) => clamp(width + delta, SIDEBAR_MIN, SIDEBAR_MAX))
+              }
+            />
 
             <main className="editor-container">
               {selectedPart && partContent !== null ? (
@@ -419,50 +501,22 @@ export function XmlEditorScreen({
               )}
             </main>
 
-            <aside className="right-panels">
-              {showSearch && (
-                <div className="search-panel-wrapper">
-                  <SearchPanel
-                    results={searchResults}
-                    isSearching={isSearching}
-                    onSearch={(q) => void searchDocument(q)}
-                    onClear={clearSearch}
-                    onNavigate={handleSelectPart}
-                    onClose={() => setShowSearch(false)}
-                  />
-                </div>
-              )}
-
-              {validationFeatureEnabled && showValidation ? (
-                <div className="validation-panel">
-                  <ValidationPanel
-                    results={validationResults}
-                    isValidating={isValidating}
-                    onClose={() => setShowValidation(false)}
-                    onNavigate={handleSelectPart}
-                    onRevalidate={handleValidate}
-                  />
-                </div>
-              ) : null}
-
-              {isOoxml && showInspector && !isCompareMode ? (
-                <div className="schema-inspector-wrapper">
-                  <SchemaInspectorPanel
-                    query={inspectorQuery}
-                    documentType={documentData.documentType}
-                    onClose={() => setShowInspector(false)}
-                  />
-                </div>
-              ) : null}
-
-              {documentData.containerFormat === 'ooxml' ? (
-                <SchemaReferencePanel
-                  summary={schemaReferenceSummary}
-                  isLoading={isSchemaReferenceLoading}
-                  error={schemaReferenceError}
+            {rightPanels.length > 0 && (
+              <>
+                <ResizeHandle
+                  orientation="vertical"
+                  ariaLabel="우측 패널 너비 조절"
+                  onResize={(delta) =>
+                    setRightPanelWidth((width) =>
+                      clamp(width - delta, RIGHT_PANEL_MIN, RIGHT_PANEL_MAX)
+                    )
+                  }
                 />
-              ) : null}
-            </aside>
+                <aside className="right-panels" style={{ width: rightPanelWidth }}>
+                  <ResizablePanelStack panels={rightPanels} />
+                </aside>
+              </>
+            )}
           </>
         )}
       </div>
