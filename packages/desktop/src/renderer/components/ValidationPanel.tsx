@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { explainValidationCode } from '../utils/validation-error-explainer'
 
 interface ValidationError {
   code: string
@@ -259,52 +260,70 @@ export function ValidationPanel({
                 <div className="validation-errors">
                   {result.error && !result.errors && (
                     <div className="validation-error">
-                      <span className="error-code">XML_PARSE_ERROR</span>
-                      <span className="error-message">{result.error}</span>
+                      <div className="error-header">
+                        <span className="error-code">XML_PARSE_ERROR</span>
+                        <span className="error-code-label">
+                          {explainValidationCode('XML_PARSE_ERROR').title}
+                        </span>
+                      </div>
+                      <div className="error-message">{result.error}</div>
+                      <div className="error-action">
+                        → {explainValidationCode('XML_PARSE_ERROR').action}
+                      </div>
                     </div>
                   )}
 
-                  {result.errors?.map((error, index) => (
-                    <div key={`error-${index}`} className="validation-error">
-                      <div className="error-header">
-                        <span className="error-code">{error.code}</span>
-                        {error.line !== undefined && (
-                          <span className="error-location">
-                            줄 {error.line}
-                            {error.column !== undefined && `:${error.column}`}
-                          </span>
-                        )}
-                      </div>
-                      <div className="error-message">{error.message}</div>
-                      <div className="error-path">{error.path}</div>
-                      {error.value && (
-                        <div className="error-value">
-                          값: <code>{error.value}</code>
+                  {result.errors?.map((error, index) => {
+                    const explain = explainValidationCode(error.code)
+                    return (
+                      <div key={`error-${index}`} className="validation-error">
+                        <div className="error-header">
+                          <span className="error-code">{error.code}</span>
+                          <span className="error-code-label">{explain.title}</span>
+                          {error.line !== undefined && (
+                            <span className="error-location">
+                              줄 {error.line}
+                              {error.column !== undefined && `:${error.column}`}
+                            </span>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        <div className="error-message">{error.message}</div>
+                        <div className="error-path">{error.path}</div>
+                        {error.value && (
+                          <div className="error-value">
+                            값: <code>{error.value}</code>
+                          </div>
+                        )}
+                        {explain.action && <div className="error-action">→ {explain.action}</div>}
+                      </div>
+                    )
+                  })}
 
-                  {result.warnings?.map((warning, index) => (
-                    <div key={`warning-${index}`} className="validation-warning">
-                      <div className="error-header">
-                        <span className="warning-code">{warning.code}</span>
-                        {warning.line !== undefined && (
-                          <span className="error-location">
-                            줄 {warning.line}
-                            {warning.column !== undefined && `:${warning.column}`}
-                          </span>
-                        )}
-                      </div>
-                      <div className="error-message">{warning.message}</div>
-                      <div className="error-path">{warning.path}</div>
-                      {warning.value && (
-                        <div className="error-value">
-                          값: <code>{warning.value}</code>
+                  {result.warnings?.map((warning, index) => {
+                    const explain = explainValidationCode(warning.code)
+                    return (
+                      <div key={`warning-${index}`} className="validation-warning">
+                        <div className="error-header">
+                          <span className="warning-code">{warning.code}</span>
+                          <span className="error-code-label">{explain.title}</span>
+                          {warning.line !== undefined && (
+                            <span className="error-location">
+                              줄 {warning.line}
+                              {warning.column !== undefined && `:${warning.column}`}
+                            </span>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        <div className="error-message">{warning.message}</div>
+                        <div className="error-path">{warning.path}</div>
+                        {warning.value && (
+                          <div className="error-value">
+                            값: <code>{warning.value}</code>
+                          </div>
+                        )}
+                        {explain.action && <div className="error-action">→ {explain.action}</div>}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>

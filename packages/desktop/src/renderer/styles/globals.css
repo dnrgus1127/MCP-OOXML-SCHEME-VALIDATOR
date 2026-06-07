@@ -1386,10 +1386,27 @@ body {
   font-weight: 600;
 }
 
+.error-code-label {
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .error-location {
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: 10px;
+  margin-left: auto;
+}
+
+.error-action {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-left: 2px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text-1);
+  font-size: 11px;
+  border-radius: 0 3px 3px 0;
 }
 
 .error-message {
