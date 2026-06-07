@@ -31,7 +31,7 @@ export function Toolbar({
   onValidate,
   validationEnabled = false,
   onOpenSettings,
-  openLabel = 'Open',
+  openLabel = '열기',
   hasDocument,
   filePath,
   isDirty,
@@ -57,7 +57,7 @@ export function Toolbar({
           </button>
           {onOpenSettings && (
             <button onClick={onOpenSettings} className="toolbar-btn">
-              ⚙ Settings
+              ⚙ 설정
             </button>
           )}
           <button
@@ -65,10 +65,10 @@ export function Toolbar({
             className={`toolbar-btn${isDirty ? ' toolbar-btn--dirty' : ''}`}
             disabled={writeDisabled}
           >
-            💾 Save
+            💾 저장
           </button>
           <button onClick={onSaveAs} className="toolbar-btn" disabled={writeDisabled}>
-            💾 Save As
+            💾 다른 이름으로 저장
           </button>
           {validationEnabled && (
             <button
@@ -77,7 +77,7 @@ export function Toolbar({
               disabled={writeDisabled}
               title="개발 중인 Pre 검증 기능"
             >
-              ✓ Validate <span className="toolbar-pre-badge">Pre</span>
+              ✓ 검증 <span className="toolbar-pre-badge">Pre</span>
             </button>
           )}
           {onToggleCompare && (
@@ -87,7 +87,7 @@ export function Toolbar({
               disabled={!hasDocument}
               title={isCompareMode ? '비교 모드 종료' : '다른 파일과 비교'}
             >
-              🔀 {isCompareMode ? 'Exit Compare' : 'Compare with…'}
+              🔀 {isCompareMode ? '비교 종료' : '파일 비교…'}
             </button>
           )}
           {onToggleSearch && (
@@ -97,7 +97,7 @@ export function Toolbar({
               disabled={!hasDocument}
               title="문서 전체 XML 검색"
             >
-              🔍 Search
+              🔍 검색
             </button>
           )}
           {onToggleInspector && (
@@ -107,7 +107,7 @@ export function Toolbar({
               disabled={!hasDocument || isCompareMode}
               title="커서 위치의 요소 스키마 정보 패널"
             >
-              📖 Schema
+              📖 스키마
             </button>
           )}
         </>
@@ -117,7 +117,7 @@ export function Toolbar({
           <span className={`file-name${isDirty ? ' file-name--dirty' : ''}`}>
             {isDirty && '● '}
             {fileName}
-            {isCompareMode && <span className="compare-mode-badge"> · Compare</span>}
+            {isCompareMode && <span className="compare-mode-badge"> · 비교</span>}
           </span>
         )
       }

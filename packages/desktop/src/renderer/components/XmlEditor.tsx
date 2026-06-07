@@ -433,14 +433,14 @@ export function XmlEditor({
           {compareMode ? (
             <span className="compare-labels">
               <span className="compare-label compare-label--primary">
-                ◀ {primaryLabel ?? 'Primary'}
+                ◀ {primaryLabel ?? '기준'}
               </span>
               <span className="compare-label compare-label--comparison">
-                {comparisonLabel ?? 'Comparison'} ▶
+                {comparisonLabel ?? '비교'} ▶
               </span>
             </span>
           ) : null}
-          <span className="editor-theme-badge" aria-label={`Current editor theme: ${editorTheme}`}>
+          <span className="editor-theme-badge" aria-label={`현재 에디터 테마: ${editorTheme}`}>
             {getEditorThemeLabel(editorTheme)}
           </span>
         </div>
@@ -464,7 +464,7 @@ export function XmlEditor({
             className="editor-btn"
             disabled={(!isMonacoReady && !monacoLoadError) || compareMode}
           >
-            Format
+            서식 정리
           </button>
         </div>
       </div>

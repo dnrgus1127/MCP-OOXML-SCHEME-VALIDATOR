@@ -349,7 +349,7 @@ export function XmlEditorScreen({
     <>
       <Toolbar
         onOpenFile={() => void handleChangeFile()}
-        openLabel={documentData ? 'Change File' : 'Open File'}
+        openLabel={documentData ? '파일 변경' : '파일 열기'}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
         onValidate={handleValidate}
@@ -378,8 +378,8 @@ export function XmlEditorScreen({
         {!documentData ? (
           <div className="welcome">
             <h1>OOXML Validator</h1>
-            <p>Open an OOXML or ODF document (xlsx, docx, pptx, odt, ods, odp) to start</p>
-            <button onClick={() => void handleChangeFile()}>Open File</button>
+            <p>OOXML 또는 ODF 문서(xlsx, docx, pptx, odt, ods, odp)를 열어 시작하세요</p>
+            <button onClick={() => void handleChangeFile()}>파일 열기</button>
           </div>
         ) : (
           <>
@@ -413,9 +413,9 @@ export function XmlEditorScreen({
                   onSchemaContextChange={isOoxml && !isCompareMode ? setCursorContext : undefined}
                 />
               ) : isLoading ? (
-                <div className="loading">Loading...</div>
+                <div className="loading">불러오는 중…</div>
               ) : (
-                <div className="placeholder">Select a part from the tree to view its content</div>
+                <div className="placeholder">트리에서 파트를 선택하면 내용이 표시됩니다</div>
               )}
             </main>
 
