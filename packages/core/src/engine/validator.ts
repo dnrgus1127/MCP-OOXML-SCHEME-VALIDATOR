@@ -165,7 +165,8 @@ export class ValidationEngine {
     if (this.isCompletelyUnknownNamespace(effectiveElement)) {
       const isNewNsContext =
         !parentFrame ||
-        normalizeNamespace(parentFrame.namespaceUri) !== normalizeNamespace(effectiveElement.namespaceUri)
+        normalizeNamespace(parentFrame.namespaceUri) !==
+          normalizeNamespace(effectiveElement.namespaceUri)
       if (isNewNsContext) {
         const message = formatMessage(
           'ELEMENT.UNKNOWN_NAMESPACE',
@@ -213,14 +214,22 @@ export class ValidationEngine {
         const message = result.occurrenceViolation
           ? this.formatOccurrenceViolationMessage(result.occurrenceViolation)
           : formatMessage('ELEMENT.INVALID', effectiveElement.name)
-        this.errorHandler.pushError(
-          result.errorCode ?? 'INVALID_CONTENT',
-          message
-        )
+        this.errorHandler.pushError(result.errorCode ?? 'INVALID_CONTENT', message)
       }
 
       matchedParticle = result.matchedParticle
       shouldResolveSchema = result.success || Boolean(result.matchedParticle)
+    }
+
+    // extLst는 lax 와일드카드(<xsd:any processContents="lax">)로 임의의 벤더 확장
+    // 콘텐츠를 담는 확장 영역이라 내부를 검증하지 않는다. 부모 compositor가 extLst를
+    // 이미 수용/카운트한 뒤이므로, 여기서 skip 프레임을 push해 하위 트리(ext 및 그
+    // 미지 네임스페이스 자식들)를 통째로 건너뛴다. 그러지 않으면 CT_Extension의 필수
+    // any 파티클이 미충족으로 오탐(MISSING_REQUIRED_ELEMENT)되고, 확장 콘텐츠마다
+    // 불필요한 UNKNOWN_NAMESPACE 경고가 발생한다.
+    if (this.isExtensionListElement(effectiveElement)) {
+      this.context.elementStack.push(this.createSkippedFrame(effectiveElement))
+      return
     }
 
     const isWildcardMatch = Boolean(matchedParticle && isAny(matchedParticle.particle))
@@ -228,28 +237,26 @@ export class ValidationEngine {
     const schemaElement = !shouldResolveSchema
       ? undefined
       : isWildcardMatch
-      ? undefined
-      : matchedParticle
-        ? (this.extractElementFromParticle(
-            matchedParticle,
-            namespaceContext,
-            parentFrame?.schemaNamespaceUri
-          ) ??
-          this.registry.resolveElement(
-            effectiveElement.namespaceUri,
-            effectiveElement.localName
-          ))
-        : this.registry.resolveElement(effectiveElement.namespaceUri, effectiveElement.localName)
+        ? undefined
+        : matchedParticle
+          ? (this.extractElementFromParticle(
+              matchedParticle,
+              namespaceContext,
+              parentFrame?.schemaNamespaceUri
+            ) ??
+            this.registry.resolveElement(effectiveElement.namespaceUri, effectiveElement.localName))
+          : this.registry.resolveElement(effectiveElement.namespaceUri, effectiveElement.localName)
 
-    const schemaType = !shouldResolveSchema || isWildcardMatch
-      ? null
-      : resolveSchemaElementType(
-          schemaElement,
-          namespaceContext,
-          effectiveElement,
-          this.registry,
-          this.errorHandler.pushError.bind(this.errorHandler)
-        )
+    const schemaType =
+      !shouldResolveSchema || isWildcardMatch
+        ? null
+        : resolveSchemaElementType(
+            schemaElement,
+            namespaceContext,
+            effectiveElement,
+            this.registry,
+            this.errorHandler.pushError.bind(this.errorHandler)
+          )
 
     const validatedAttributes = isComplexSchemaType(schemaType)
       ? validateAttributes(
@@ -577,6 +584,17 @@ export class ValidationEngine {
     )
   }
 
+  /**
+   * OOXML 확장 영역인 extLst 요소인지 판별한다.
+   * 등록된 스키마 네임스페이스에 속한 'extLst'만 대상으로 하여, 무관한 'extLst'까지
+   * 건너뛰지 않도록 한다.
+   */
+  private isExtensionListElement(element: XmlElementInfo): boolean {
+    if (element.localName !== 'extLst') return false
+    const normalized = normalizeNamespace(element.namespaceUri)
+    return this.registry.schemas.has(element.namespaceUri) || this.registry.schemas.has(normalized)
+  }
+
   private isCompletelyUnknownNamespace(element: XmlElementInfo): boolean {
     const { namespaceUri, localName } = element
     if (!namespaceUri) return false
@@ -622,7 +640,7 @@ export class ValidationEngine {
       if (p.ref && !p.typeRef && !p.inlineComplexType && !p.inlineSimpleType) {
         let refNs = p.ref.namespacePrefix
           ? resolveNamespaceUri(namespaceContext, p.ref.namespacePrefix)
-          : fallbackNamespaceUri ?? resolveNamespaceUri(namespaceContext)
+          : (fallbackNamespaceUri ?? resolveNamespaceUri(namespaceContext))
         if (!refNs && p.ref.namespacePrefix) {
           refNs = this.registry.resolveSchemaPrefix(p.ref.namespacePrefix) ?? ''
         }
@@ -655,7 +673,8 @@ export class ValidationEngine {
 
     for (const attr of element.attributes) {
       const normalizedNs = normalizeNamespace(attr.namespaceUri ?? '')
-      const localName = attr.localName ?? (attr.name.includes(':') ? attr.name.split(':')[1] : attr.name)
+      const localName =
+        attr.localName ?? (attr.name.includes(':') ? attr.name.split(':')[1] : attr.name)
       if (normalizedNs !== MC_NAMESPACE || localName !== 'Ignorable') {
         continue
       }
