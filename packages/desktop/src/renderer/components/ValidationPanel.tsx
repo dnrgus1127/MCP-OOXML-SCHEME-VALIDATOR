@@ -44,6 +44,7 @@ interface ValidationResult {
 
 interface ValidationPanelProps {
   results: ValidationResult | null
+  isValidating?: boolean
   onClose: () => void
   onNavigate: (partPath: string) => void
   onRevalidate: () => void
@@ -53,18 +54,60 @@ function formatIssueCount(errorCount: number, warningCount: number): string {
   const parts: string[] = []
 
   if (errorCount > 0) {
-    parts.push(`${errorCount} error${errorCount !== 1 ? 's' : ''}`)
+    parts.push(`오류 ${errorCount}개`)
   }
 
   if (warningCount > 0) {
-    parts.push(`${warningCount} warning${warningCount !== 1 ? 's' : ''}`)
+    parts.push(`경고 ${warningCount}개`)
   }
 
   return parts.join(', ')
 }
 
+function toneLabel(tone: 'invalid' | 'warning' | 'valid' | 'info'): string {
+  switch (tone) {
+    case 'invalid':
+      return '오류'
+    case 'warning':
+      return '경고'
+    case 'valid':
+      return '정상'
+    case 'info':
+      return '정보'
+  }
+}
+
+interface ValidationHeaderProps {
+  isValidating: boolean
+  onRevalidate: () => void
+  onClose: () => void
+}
+
+function ValidationHeader({ isValidating, onRevalidate, onClose }: ValidationHeaderProps) {
+  return (
+    <div className="validation-header">
+      <h3>
+        검증 결과 <span className="validation-pre-badge">Pre</span>
+      </h3>
+      <button onClick={onRevalidate} className="revalidate-btn" disabled={isValidating}>
+        {isValidating ? (
+          <>
+            <span className="spinner" aria-hidden /> 검증 중…
+          </>
+        ) : (
+          '다시 검증'
+        )}
+      </button>
+      <button onClick={onClose} className="close-btn" aria-label="검증 결과 닫기">
+        ×
+      </button>
+    </div>
+  )
+}
+
 export function ValidationPanel({
   results,
+  isValidating = false,
   onClose,
   onNavigate,
   onRevalidate,
@@ -86,19 +129,15 @@ export function ValidationPanel({
   if (!results) {
     return (
       <div className="validation-results">
-        <div className="validation-header">
-          <h3>
-            Validation Results <span className="validation-pre-badge">Pre</span>
-          </h3>
-          <button onClick={onRevalidate} className="revalidate-btn">
-            Re-validate
-          </button>
-          <button onClick={onClose} className="close-btn" aria-label="Close validation results">
-            x
-          </button>
-        </div>
-        <div className="validation-empty">
-          No validation results. Click "Validate" to check the document.
+        <ValidationHeader
+          isValidating={isValidating}
+          onRevalidate={onRevalidate}
+          onClose={onClose}
+        />
+        <div className="validation-empty" role="status" aria-live="polite">
+          {isValidating
+            ? '문서를 검증하는 중입니다…'
+            : "검증 결과가 없습니다. '검증'을 눌러 문서를 확인하세요."}
         </div>
       </div>
     )
@@ -107,28 +146,20 @@ export function ValidationPanel({
   if (results.supportStatus === 'unsupported') {
     return (
       <div className="validation-results">
-        <div className="validation-header">
-          <h3>
-            Validation Results <span className="validation-pre-badge">Pre</span>
-          </h3>
-          <button onClick={onRevalidate} className="revalidate-btn">
-            Re-validate
-          </button>
-          <button onClick={onClose} className="close-btn" aria-label="Close validation results">
-            x
-          </button>
-        </div>
+        <ValidationHeader
+          isValidating={isValidating}
+          onRevalidate={onRevalidate}
+          onClose={onClose}
+        />
 
         <div className="validation-summary warning">
-          <span className="status-icon">INFO</span>
-          <span className="status-text">Validation unsupported</span>
-          <span className="counts">
-            This document can be viewed and edited, but validation is skipped.
-          </span>
+          <span className="status-icon">{toneLabel('info')}</span>
+          <span className="status-text">검증 미지원</span>
+          <span className="counts">이 문서는 보기·편집은 가능하지만 검증은 건너뜁니다.</span>
         </div>
 
         <div className="validation-empty">
-          {results.message ?? 'Validation is not available for this document format.'}
+          {results.message ?? '이 문서 형식은 검증을 지원하지 않습니다.'}
         </div>
       </div>
     )
@@ -150,41 +181,30 @@ export function ValidationPanel({
   const detailCounts: string[] = []
 
   if (totalErrors > 0) {
-    detailCounts.push(`${totalErrors} errors`)
+    detailCounts.push(`오류 ${totalErrors}개`)
   }
 
   if (totalWarnings > 0) {
-    detailCounts.push(`${totalWarnings} warnings`)
+    detailCounts.push(`경고 ${totalWarnings}개`)
   }
 
   const summaryTone = totalErrors > 0 ? 'invalid' : totalWarnings > 0 ? 'warning' : 'valid'
-  const summaryIcon = summaryTone === 'invalid' ? 'ERR' : summaryTone === 'warning' ? 'WARN' : 'OK'
   const summaryText =
     summaryTone === 'invalid'
-      ? 'Document has errors'
+      ? '문서에 오류가 있습니다'
       : summaryTone === 'warning'
-        ? 'Document has warnings'
-        : 'Document is valid'
+        ? '문서에 경고가 있습니다'
+        : '문서가 유효합니다'
 
   return (
     <div className="validation-results">
-      <div className="validation-header">
-        <h3>
-          Validation Results <span className="validation-pre-badge">Pre</span>
-        </h3>
-        <button onClick={onRevalidate} className="revalidate-btn">
-          Re-validate
-        </button>
-        <button onClick={onClose} className="close-btn" aria-label="Close validation results">
-          x
-        </button>
-      </div>
+      <ValidationHeader isValidating={isValidating} onRevalidate={onRevalidate} onClose={onClose} />
 
       <div className={`validation-summary ${summaryTone}`}>
-        <span className="status-icon">{summaryIcon}</span>
+        <span className="status-icon">{toneLabel(summaryTone)}</span>
         <span className="status-text">{summaryText}</span>
         <span className="counts">
-          {validCount} valid, {invalidCount} invalid
+          {validCount}개 유효, {invalidCount}개 무효
           {detailCounts.length > 0 && ` (${detailCounts.join(', ')})`}
         </span>
       </div>
@@ -213,9 +233,7 @@ export function ValidationPanel({
                     }
                   }}
                 >
-                  <span className="item-icon">
-                    {tone === 'invalid' ? 'ERR' : tone === 'warning' ? 'WARN' : 'OK'}
-                  </span>
+                  <span className="item-icon">{toneLabel(tone)}</span>
                   <span className="item-path">{result.path}</span>
                   {hasIssues && (
                     <span
@@ -231,9 +249,9 @@ export function ValidationPanel({
                 <button
                   className="navigate-btn"
                   onClick={() => onNavigate(result.path)}
-                  title="Go to part"
+                  title="파트로 이동"
                 >
-                  Go
+                  이동
                 </button>
               </div>
 
@@ -252,7 +270,7 @@ export function ValidationPanel({
                         <span className="error-code">{error.code}</span>
                         {error.line !== undefined && (
                           <span className="error-location">
-                            Line {error.line}
+                            줄 {error.line}
                             {error.column !== undefined && `:${error.column}`}
                           </span>
                         )}
@@ -261,7 +279,7 @@ export function ValidationPanel({
                       <div className="error-path">{error.path}</div>
                       {error.value && (
                         <div className="error-value">
-                          Value: <code>{error.value}</code>
+                          값: <code>{error.value}</code>
                         </div>
                       )}
                     </div>
@@ -273,7 +291,7 @@ export function ValidationPanel({
                         <span className="warning-code">{warning.code}</span>
                         {warning.line !== undefined && (
                           <span className="error-location">
-                            Line {warning.line}
+                            줄 {warning.line}
                             {warning.column !== undefined && `:${warning.column}`}
                           </span>
                         )}
@@ -282,7 +300,7 @@ export function ValidationPanel({
                       <div className="error-path">{warning.path}</div>
                       {warning.value && (
                         <div className="error-value">
-                          Value: <code>{warning.value}</code>
+                          값: <code>{warning.value}</code>
                         </div>
                       )}
                     </div>

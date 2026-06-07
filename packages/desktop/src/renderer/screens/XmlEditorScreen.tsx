@@ -40,6 +40,7 @@ export function XmlEditorScreen({
     partContent,
     validationResults,
     isLoading,
+    isValidating,
     error,
     setFilePath,
     shouldWarnBeforeOverwrite,
@@ -436,6 +437,7 @@ export function XmlEditorScreen({
                 <div className="validation-panel">
                   <ValidationPanel
                     results={validationResults}
+                    isValidating={isValidating}
                     onClose={() => setShowValidation(false)}
                     onNavigate={handleSelectPart}
                     onRevalidate={handleValidate}
