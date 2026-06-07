@@ -13,6 +13,7 @@ import {
 } from '../schema/cursor-context'
 import { lookupSchemaElementByPath } from '../schema/schemaInspector'
 import { formatSchemaHoverMarkdown } from '../schema/describe-format'
+import { formatXml } from '../utils/formatXml'
 
 type PluginContextProvider = () => PluginContext | null
 
@@ -41,53 +42,6 @@ interface XmlEditorProps {
   onSchemaContextChange?: (context: SchemaCursorContext | null) => void
 }
 
-// Format XML with proper indentation
-function formatXml(xml: string): string {
-  try {
-    let formatted = xml
-      // Remove existing whitespace between tags
-      .replace(/>\s+</g, '><')
-      // Add newlines
-      .replace(/></g, '>\n<')
-
-    // Indent
-    const lines = formatted.split('\n')
-    let indent = 0
-    const indentedLines = lines.map((line) => {
-      const trimmed = line.trim()
-      if (!trimmed) return ''
-
-      const isClosingTag = trimmed.startsWith('</')
-      const isOpeningTag =
-        trimmed.startsWith('<') &&
-        !isClosingTag &&
-        !trimmed.startsWith('<?') &&
-        !trimmed.startsWith('<!')
-      const isSelfClosingTag = trimmed.endsWith('/>')
-      const isInlineTag = isOpeningTag && trimmed.includes('</')
-
-      // Decrease indent for closing tags
-      if (isClosingTag) {
-        indent = Math.max(0, indent - 1)
-      }
-
-      const indentedLine = '  '.repeat(indent) + trimmed
-
-      // Increase indent only for true container opening tags.
-      // Inline tags like <AppVersion>1.0</AppVersion> should stay on the same level.
-      if (isOpeningTag && !isSelfClosingTag && !isInlineTag) {
-        indent++
-      }
-
-      return indentedLine
-    })
-
-    return indentedLines.join('\n')
-  } catch {
-    return xml
-  }
-}
-
 export function XmlEditor({
   content,
   partPath,
@@ -112,6 +66,9 @@ export function XmlEditor({
   const onSchemaContextChangeRef =
     useRef<XmlEditorProps['onSchemaContextChange']>(onSchemaContextChange)
   const cursorContextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 프로그램적 setValue(파트 로드/전환)가 onChange를 발화해 false-dirty를
+  // 만드는 것을 막는다. 실제 사용자 편집일 때만 onChange를 전달한다. (C1)
+  const suppressChangeRef = useRef(false)
 
   const [localContent, setLocalContent] = useState(() => formatXml(content))
   const [isMonacoReady, setIsMonacoReady] = useState(false)
@@ -230,7 +187,10 @@ export function XmlEditor({
         editorRef.current.onDidChangeModelContent(() => {
           const value = editorRef.current?.getValue() ?? ''
           setLocalContent(value)
-          onChange(value)
+          // 프로그램적 갱신(파트 전환/포맷 재적용)은 dirty로 취급하지 않는다.
+          if (!suppressChangeRef.current) {
+            onChange(value)
+          }
           emitCursorContext()
         })
 
@@ -425,7 +385,13 @@ export function XmlEditor({
     setLocalContent(formatted)
 
     if (editorRef.current && editorRef.current.getValue() !== formatted) {
-      editorRef.current.setValue(formatted)
+      // 파트 로드/전환에 의한 프로그램적 갱신 — onChange를 억제해 false-dirty 방지
+      suppressChangeRef.current = true
+      try {
+        editorRef.current.setValue(formatted)
+      } finally {
+        suppressChangeRef.current = false
+      }
       editorRef.current.trigger('xml-editor', 'editor.unfoldAll', null)
     }
   }, [content, comparisonContent, partPath, compareMode])
@@ -434,9 +400,15 @@ export function XmlEditor({
     if (compareMode) return
     const result = formatXml(editorRef.current?.getValue() ?? localContent)
     setLocalContent(result)
+    // 명시적 사용자 액션이므로 dirty로 한 번만 반영한다.
     onChange(result)
     if (editorRef.current && editorRef.current.getValue() !== result) {
-      editorRef.current.setValue(result)
+      suppressChangeRef.current = true
+      try {
+        editorRef.current.setValue(result)
+      } finally {
+        suppressChangeRef.current = false
+      }
     }
   }
 
