@@ -303,6 +303,9 @@ export function XmlEditorScreen({
     setShowValidation(true)
   }
 
+  // 스키마 참조 분석은 문서 단위 정보(사용 네임스페이스/XSD)라 키 입력마다 갱신할
+  // 필요가 없다. 편집 중 전체 문서를 재인코딩·재분석하던 부담을 없애고, fileData가
+  // 갱신되는 시점(로드/저장/파트 전환 시 편집 반영)에만 분석한다. (P2-3)
   useEffect(() => {
     if (!fileData || !documentData || documentData.containerFormat !== 'ooxml') {
       setSchemaReferenceSummary(null)
@@ -316,20 +319,7 @@ export function XmlEditorScreen({
 
     const timeout = window.setTimeout(async () => {
       try {
-        let base64Data = fileData
-
-        if (modifiedContent !== null && selectedPart) {
-          const updated = await window.electronAPI.updatePart(
-            fileData,
-            selectedPart,
-            modifiedContent
-          )
-          if (updated.success && updated.data) {
-            base64Data = updated.data
-          }
-        }
-
-        const result = await window.electronAPI.analyzeSchemaReferences(base64Data)
+        const result = await window.electronAPI.analyzeSchemaReferences(fileData)
         if (cancelled) return
 
         if (!result.success) {
@@ -356,7 +346,7 @@ export function XmlEditorScreen({
       cancelled = true
       window.clearTimeout(timeout)
     }
-  }, [documentData, fileData, modifiedContent, selectedPart])
+  }, [documentData, fileData])
 
   const rightPanels: StackPanel[] = []
   if (documentData) {
