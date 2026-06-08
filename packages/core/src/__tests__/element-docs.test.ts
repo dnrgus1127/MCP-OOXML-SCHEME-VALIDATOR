@@ -5,9 +5,15 @@ import { describeSchemaElementByPath, type SchemaPathStep } from '../schema/elem
 
 const WML_STRICT = 'http://purl.oclc.org/ooxml/wordprocessingml/main'
 const WML_TRANSITIONAL = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+const CHART_STRICT = 'http://purl.oclc.org/ooxml/drawingml/chart'
+const CHART_TRANSITIONAL = 'http://schemas.openxmlformats.org/drawingml/2006/chart'
 
 function step(localName: string): SchemaPathStep {
   return { namespaceUri: WML_TRANSITIONAL, localName }
+}
+
+function chartStep(localName: string): SchemaPathStep {
+  return { namespaceUri: CHART_STRICT, localName }
 }
 
 describe('element-docs (curated dictionary)', () => {
@@ -27,6 +33,19 @@ describe('element-docs (curated dictionary)', () => {
 
   it('없는 요소는 undefined', () => {
     expect(getElementDoc(WML_TRANSITIONAL, 'definitelyNotReal')).toBeUndefined()
+  })
+
+  it('차트 요소 설명을 strict 네임스페이스로 조회한다', () => {
+    expect(getElementDoc(CHART_STRICT, 'chartSpace')?.summary).toContain('루트')
+    expect(getElementDoc(CHART_STRICT, 'plotArea')?.summary).toContain('그림 영역')
+  })
+
+  it('차트 transitional 네임스페이스도 정규화해 같은 설명을 반환한다', () => {
+    expect(getElementDoc(CHART_TRANSITIONAL, 'barChart')?.summary).toContain('막대')
+  })
+
+  it('차트 속성 설명을 조회한다', () => {
+    expect(getAttributeDoc(CHART_TRANSITIONAL, 'barDir', 'val')).toBeTruthy()
   })
 })
 
@@ -55,5 +74,16 @@ describe('describeSchemaElementByPath + 큐레이션 설명 병합', () => {
     expect(result.found).toBe(true)
     const valAttr = result.attributes.find((attr) => attr.name === 'val')
     expect(valAttr?.description).toBeTruthy()
+  })
+
+  it('차트 요소(plotArea)에 documentation이 채워진다', () => {
+    const result = describeSchemaElementByPath(registry, [
+      chartStep('chartSpace'),
+      chartStep('chart'),
+      chartStep('plotArea'),
+    ])
+    expect(result.found).toBe(true)
+    expect(result.documentation).toContain('그림 영역')
+    expect(result.specRef).toBeTruthy()
   })
 })
