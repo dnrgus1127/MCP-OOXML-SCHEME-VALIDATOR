@@ -8,7 +8,18 @@ import {
 } from 'vscode-jsonrpc/node'
 import { mkdirSync, appendFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import { spawnLspServer, type SpawnLspOptions } from './server'
+import { spawnLspServer, resolveMsValidatorBinPath, type SpawnLspOptions } from './server'
+
+export type LspServerState = 'stopped' | 'starting' | 'running' | 'crashed'
+
+export interface LspStatus {
+  /** LSP 서버 child process 의 현재 상태 */
+  state: LspServerState
+  /** MS Open XML SDK 기반 심층 검증(sidecar) 활성 여부 */
+  msValidator: boolean
+  /** 상태 부연 설명(오류 사유 등) */
+  detail?: string
+}
 
 const LOG_DIR = join(process.cwd(), '.omc', 'logs')
 const LOG_FILE = join(LOG_DIR, 'lsp-debug.log')
@@ -50,12 +61,34 @@ export class LspBridge {
   private child: ChildProcessWithoutNullStreams | null = null
   private connection: MessageConnection | null = null
   private subscribers = new Set<WebContents>()
+  private status: LspStatus = { state: 'stopped', msValidator: false }
+
+  getStatus(): LspStatus {
+    return this.status
+  }
+
+  private setStatus(next: Partial<LspStatus>): void {
+    this.status = { ...this.status, ...next }
+    logToFile(`[status] ${JSON.stringify(this.status)}`)
+    for (const webContents of this.subscribers) {
+      if (webContents.isDestroyed()) {
+        this.subscribers.delete(webContents)
+        continue
+      }
+      webContents.send('lsp:status', this.status)
+    }
+  }
 
   start(options: SpawnLspOptions = {}): void {
     if (this.connection) return
 
     resetLogFile()
     logToFile(`[bridge.start] options=${JSON.stringify(options)}`)
+
+    const msValidatorActive =
+      options.enableMsValidator !== false &&
+      (options.msValidatorBinPath !== undefined || resolveMsValidatorBinPath() !== undefined)
+    this.setStatus({ state: 'starting', msValidator: msValidatorActive, detail: undefined })
 
     this.child = spawnLspServer(options)
     this.child.stderr.on('data', (chunk: Buffer) => {
@@ -70,6 +103,12 @@ export class LspBridge {
       this.connection?.dispose()
       this.connection = null
       this.child = null
+      // 정상 종료(코드 0 또는 우리가 보낸 SIGTERM)와 비정상 크래시를 구분해 표시한다.
+      const crashed = code !== 0 && code !== null
+      this.setStatus({
+        state: crashed ? 'crashed' : 'stopped',
+        detail: crashed ? `LSP 서버가 예기치 않게 종료됨 (${msg})` : undefined,
+      })
     })
 
     const connection = createMessageConnection(
@@ -86,6 +125,7 @@ export class LspBridge {
 
     connection.listen()
     this.connection = connection
+    this.setStatus({ state: 'running' })
   }
 
   stop(): void {
@@ -93,6 +133,7 @@ export class LspBridge {
     this.connection = null
     this.child?.kill()
     this.child = null
+    this.setStatus({ state: 'stopped', detail: undefined })
     this.subscribers.clear()
   }
 
@@ -141,12 +182,19 @@ export function getLspBridge(): LspBridge {
 export function registerLspIpc(bridge: LspBridge = getLspBridge()): void {
   ipcMain.handle('lsp:start', async (event, options: SpawnLspOptions = {}) => {
     try {
-      bridge.start(options)
+      // 시작 중 발생하는 상태 전이(starting→running)를 렌더러가 받도록 먼저 구독한다.
       bridge.subscribe(event.sender)
+      bridge.start(options)
       return { success: true }
     } catch (error) {
       return { success: false, error: String(error) }
     }
+  })
+
+  ipcMain.handle('lsp:get-status', async (event) => {
+    // 상태 조회 시 함께 구독해 두면, 문서를 열기 전(stopped)부터 이후 전이를 모두 수신한다.
+    bridge.subscribe(event.sender)
+    return bridge.getStatus()
   })
 
   ipcMain.handle('lsp:stop', async () => {

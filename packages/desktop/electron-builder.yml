@@ -10,6 +10,11 @@ files:
   - dist/**/*
   - package.json
 
+# 네이티브 sidecar(ooxml-msvalidator) 는 asar 내부에서 실행할 수 없으므로
+# 실제 디스크(app.asar.unpacked)로 풀어 LSP 서버가 spawn 할 수 있게 한다.
+asarUnpack:
+  - '**/ms-validator-bin/**'
+
 mac:
   category: public.app-category.developer-tools
   icon: resources/icons/icon.icns
