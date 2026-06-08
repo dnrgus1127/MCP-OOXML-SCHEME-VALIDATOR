@@ -121,6 +121,30 @@ const api = {
       ipcRenderer.on('lsp:notification', listener)
       return () => ipcRenderer.removeListener('lsp:notification', listener)
     },
+    getStatus: () =>
+      ipcRenderer.invoke('lsp:get-status') as Promise<{
+        state: 'stopped' | 'starting' | 'running' | 'crashed'
+        msValidator: boolean
+        detail?: string
+      }>,
+    onStatus: (
+      callback: (status: {
+        state: 'stopped' | 'starting' | 'running' | 'crashed'
+        msValidator: boolean
+        detail?: string
+      }) => void
+    ) => {
+      const listener = (
+        _: Electron.IpcRendererEvent,
+        status: {
+          state: 'stopped' | 'starting' | 'running' | 'crashed'
+          msValidator: boolean
+          detail?: string
+        }
+      ) => callback(status)
+      ipcRenderer.on('lsp:status', listener)
+      return () => ipcRenderer.removeListener('lsp:status', listener)
+    },
   },
 }
 

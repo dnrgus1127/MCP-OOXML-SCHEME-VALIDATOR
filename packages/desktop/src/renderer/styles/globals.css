@@ -4109,3 +4109,68 @@ body {
   font-size: 11px;
   color: var(--text-muted);
 }
+
+/* LSP 서버 상태 표시줄 (하단 고정) */
+.lsp-status-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  /* 모달/팔레트(z-index 999~1100) 아래, 일반 콘텐츠 위 */
+  z-index: 50;
+  user-select: none;
+  -webkit-app-region: no-drag;
+}
+
+.lsp-status-bar__dot {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.lsp-status-bar--running .lsp-status-bar__dot {
+  color: var(--success);
+}
+
+.lsp-status-bar--starting .lsp-status-bar__dot {
+  color: var(--warning);
+}
+
+.lsp-status-bar--stopped .lsp-status-bar__dot {
+  color: var(--text-muted);
+}
+
+.lsp-status-bar--crashed {
+  color: var(--error);
+}
+
+.lsp-status-bar--crashed .lsp-status-bar__dot {
+  color: var(--error);
+}
+
+.lsp-status-bar__label {
+  font-weight: 500;
+}
+
+.lsp-status-bar__sep,
+.lsp-status-bar__deep {
+  color: var(--text-muted);
+}
+
+.lsp-status-bar__detail {
+  margin-left: 6px;
+  color: var(--error);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

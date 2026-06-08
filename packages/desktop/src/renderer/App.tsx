@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { BatchValidator } from './components/BatchValidator'
 import { QuickOpenPalette } from './components/QuickOpenPalette'
+import { LspStatusBar } from './components/LspStatusBar'
+import { lspClient } from './lsp/client'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { HomeScreen } from './screens/HomeScreen'
 import { SupportedSchemasScreen } from './screens/SupportedSchemasScreen'
@@ -121,6 +123,18 @@ declare global {
         log: (message: string) => Promise<{ success: boolean }>
         onNotification: (
           callback: (message: { method: string; params: unknown }) => void
+        ) => () => void
+        getStatus: () => Promise<{
+          state: 'stopped' | 'starting' | 'running' | 'crashed'
+          msValidator: boolean
+          detail?: string
+        }>
+        onStatus: (
+          callback: (status: {
+            state: 'stopped' | 'starting' | 'running' | 'crashed'
+            msValidator: boolean
+            detail?: string
+          }) => void
         ) => () => void
       }
     }
@@ -268,6 +282,16 @@ export default function App() {
   useEffect(() => {
     void refreshRecentFiles()
   }, [refreshRecentFiles])
+
+  // LSP 서버를 앱 시작 시 백그라운드로 미리 기동한다(문서 열기 전부터 '실행 중' 상태 유지,
+  // 첫 문서 열기 지연 감소). 무거운 MS validator sidecar 는 실제 검증 시점에만 spawn 되므로
+  // 미리 띄워도 비용은 경량 Node 프로세스 1개뿐이다.
+  useEffect(() => {
+    if (!lspClient.isAvailable()) return
+    void lspClient.ensureStarted().catch(() => {
+      /* 기동 실패 시 statusline 의 '오류'/'중지됨' 상태로 표시된다 */
+    })
+  }, [])
 
   useEffect(() => {
     const cleanup = window.electronAPI.onFileOpened(async (path) => {
@@ -617,6 +641,8 @@ export default function App() {
         onSelect={handleQuickOpenSelect}
         onOpenSettings={openSettings}
       />
+
+      <LspStatusBar />
     </div>
   )
 }
