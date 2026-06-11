@@ -2,13 +2,14 @@
 
 ## Project Structure & Module Organization
 
-This repository is a `pnpm` + Turborepo monorepo for OOXML validation tooling.
+This repository is a `pnpm` + Turborepo monorepo for an OOXML document editor.
 
 - `packages/core`: schema registry and validation engine (`src/`, tests in `src/__tests__/`).
 - `packages/parser`: ZIP/XML parsing utilities used by validation flows.
-- `packages/mcp`: MCP server and tool handlers (`src/tools/`).
 - `packages/desktop`: Electron + React desktop app (`src/main`, `src/preload`, `src/renderer`).
+- `packages/ooxml-lsp`: Git submodule with the LSP server and validation engines the desktop app runs as a child process.
 - `tools/xsd-converter`: converts XSD files to runtime schema data.
+- `tools/validate-xml`: developer CLI for validating XML against the schemas.
 - `schemas/`: OOXML XSD sources; `docs/`: design and integration docs.
 - `agent/`: AI agent playbooks and mandatory working guides.
 
@@ -47,7 +48,7 @@ Useful package-scoped examples:
 
 - Framework: `vitest` across packages.
 - Test files: `*.test.ts` (example: `packages/core/src/__tests__/chart-validation.test.ts`).
-- Add tests for parser/validation edge cases and MCP tool behavior when changing logic.
+- Add tests for parser/validation edge cases and editor/LSP behavior when changing logic.
 - Run targeted tests while iterating, then `pnpm run test` before opening a PR.
 
 ## Commit & Pull Request Guidelines

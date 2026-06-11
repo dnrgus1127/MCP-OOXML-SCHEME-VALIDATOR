@@ -26,7 +26,7 @@ MCP 노출 계층은 더 이상 로드맵에 없다.
 | `@ooxml/parser` | OPC(ZIP)/XML 파싱·이벤트 변환 | desktop, mcp, validate-xml, **lsp-server(`diagnostics/schema.ts`)** | **유지(핵심)** |
 | `@ooxml/desktop` | Electron + React + Monaco 편집기 | (최종 산출물) | **유지(주력)** |
 | `@ooxml/mcp` | MCP 서버 (validate tool 노출) | **코드 의존 없음** — 문서/README에서만 언급 | **삭제** |
-| `ooxml-lsp` | 중첩 모노레포 래퍼 (아래 분해) | desktop가 `@ooxml-tools/lsp-server`를 사용 | **유지** |
+| `ooxml-lsp` | **Git submodule**(`dnrgus1127/ooxml-lsp`), 중첩 모노레포 | desktop가 `@ooxml-tools/lsp-server`를 사용 | **유지** |
 
 ### 중첩 `packages/ooxml-lsp/packages/*`
 
@@ -41,7 +41,7 @@ MCP 노출 계층은 더 이상 로드맵에 없다.
 | `@ooxml-tools/ms-validator` | MS Open XML SDK 사이드카 Node 래퍼 | lsp-server | **유지** |
 | `@ooxml-tools/ms-validator-bin` | .NET 사이드카 프리빌트 바이너리 | ms-validator | **유지** |
 | `@ooxml-tools/test-fixtures` | 테스트 픽스처 (devDep) | 각 패키지 devDep | **유지** |
-| `@ooxml-tools/vscode-extension` | VS Code 확장 (커스텀 에디터) | **없음** — 이미 `pnpm-workspace.yaml`에서 제외됨 | **삭제** |
+| `@ooxml-tools/vscode-extension` | VS Code 확장 (커스텀 에디터) | **없음** — 이미 `pnpm-workspace.yaml`에서 제외됨 | **워크스페이스 제외 유지** (submodule 내부라 메인 저장소에서 삭제 불가, §3 참고) |
 
 ### `tools/*`
 
@@ -50,12 +50,16 @@ MCP 노출 계층은 더 이상 로드맵에 없다.
 | `tools/xsd-converter` | XSD → JSON 스키마 변환 (core `generate:schemas` 빌드 단계) | **유지(필수)** |
 | `tools/validate-xml` | core+parser 기반 개발용 검증 CLI | **유지** (에디터 없이 엔진 디버깅용) |
 
-## 3. 정리 결정 (사용자 확정)
+## 3. 정리 결정 (사용자 확정 + 구현 중 수정)
 
-1. **`packages/mcp` 완전 삭제** — 디렉토리·`pnpm-lock.yaml` 항목 제거. 코드 의존성이 전무하여 안전. 필요 시 git 히스토리에서 복구 가능.
-2. **`packages/ooxml-lsp/packages/vscode-extension` 완전 삭제** — 데스크톱 앱이 동일한 편집기 역할을 하므로 중복. 이미 워크스페이스/CI에서 제외돼 있어 빌드 영향 없음.
-3. **`tools/validate-xml` 유지** — 유지 비용이 거의 없고 엔진 단독 디버깅에 유용.
-4. **ODF(odt/ods/odp) 지원: 미정** — 이번 정리 범위에 포함하지 않는다(§6 참고).
+1. **`packages/mcp` 완전 삭제** — 디렉토리·`pnpm-lock.yaml` 항목 제거. 코드 의존성이 전무하여 안전. 필요 시 git 히스토리에서 복구 가능. (이 저장소의 일반 디렉토리이므로 즉시 삭제 가능)
+2. **`packages/ooxml-lsp/packages/vscode-extension` — 이 저장소에서는 삭제하지 않음(구현 중 수정)**
+   - 구현 착수 후 확인 결과 `packages/ooxml-lsp`는 **Git submodule**(`https://github.com/dnrgus1127/ooxml-lsp.git`, 타인 소유 외부 저장소)이다. vscode-extension은 그 submodule 내부에 있어, 이 저장소에서 파일을 지워도 메인 저장소는 submodule 커밋 포인터만 추적하므로 변경을 커밋할 수 없다.
+   - 물리적 제거는 **upstream submodule 저장소의 작업**이며, 외부 저장소에 푸시하는 행위는 무단으로 수행하지 않는다.
+   - 편집기 프로젝트 관점에서는 이미 `pnpm-workspace.yaml`의 `!packages/ooxml-lsp/packages/vscode-extension` 라인으로 워크스페이스/빌드에서 제외돼 있어 **목표(편집기에 포함되지 않음)는 이미 충족**돼 있다. 따라서 이 제외 라인은 **유지**한다(디렉토리가 물리적으로 남아 있어, 제거하면 pnpm이 다시 워크스페이스로 끌어들임).
+3. **MCP 전용 문서 삭제** — `docs/electron-mcp-setup.md`, `docs/mcp-implementation-plan.md`, `docs/mcp-integration.md`. MCP 방향 자체가 폐기되어 보존 가치가 없으며 git 히스토리에 남는다.
+4. **`tools/validate-xml` 유지** — 유지 비용이 거의 없고 엔진 단독 디버깅에 유용.
+5. **ODF(odt/ods/odp) 지원: 미정** — 이번 정리 범위에 포함하지 않는다(§6 참고).
 
 ## 4. 정리 후 패키지 구성 (목표 상태)
 
@@ -92,19 +96,19 @@ schemas/                     OOXML XSD 원본
 패키지 디렉토리 삭제만으로 끝나지 않고, 아래 참조를 함께 정리한다.
 
 ### 코드/설정
-- `pnpm-workspace.yaml` — `!packages/ooxml-lsp/packages/vscode-extension` 제외 라인 삭제(디렉토리 자체가 사라지므로 불필요). `packages/mcp`는 `packages/*` glob으로 자동 흡수되므로 디렉토리 삭제로 충분.
+- `pnpm-workspace.yaml` — **변경 없음**. `!packages/ooxml-lsp/packages/vscode-extension` 제외 라인은 submodule 안 디렉토리가 물리적으로 남아 있으므로 그대로 유지. `packages/mcp`는 `packages/*` glob으로 자동 흡수되므로 디렉토리 삭제만으로 충분.
 - `pnpm-lock.yaml` — `pnpm install` 재실행으로 재생성.
 - 루트 `package.json` — `description`에서 "MCP server" 문구 제거(프로젝트 정체성 재정의).
 - (선택) 루트 `package.json` `name` 및 리포 폴더명 `MCP-OOXML-...` — 폴더명/리포명 변경은 작업 디렉토리 이동을 동반하므로 이번 범위에서 제외, 별도 결정.
 
 ### 문서
-- `CLAUDE.md` — "MCP integration is planned" / `packages/mcp` / `@ooxml/mcp` 항목 제거 또는 "검증 엔진 + 편집기" 중심으로 재서술.
-- `AGENTS.md` — `packages/mcp` 항목 제거.
-- `README.md`, `packages/README.md` — MCP 패키지 설명·명령 제거.
-- `docs/electron-mcp-setup.md` — MCP 연동 전용 문서. 삭제 또는 "deprecated/historical" 표기.
-- `docs/modular-architecture-design.md` — 아키텍처 다이어그램에서 `@ooxml/mcp` 박스 제거(또는 historical 표기).
-- `docs/lsp-validation-engine-replacement-plan.md` — "MCP validate tool 유지 여부" 항목을 "MCP 제거됨"으로 갱신.
-- VS Code 확장 관련 문서/`.vscode` 설정이 있으면 함께 정리.
+- `CLAUDE.md` — "MCP integration is planned" / `packages/mcp` / `@ooxml/mcp` 항목 제거, "OOXML 편집기 + LSP 검증" 중심으로 재서술. (완료)
+- `AGENTS.md` — `packages/mcp` 항목·"MCP tool behavior" 제거. (완료)
+- `README.md`, `packages/README.md` — MCP 패키지 설명·명령·문서 링크 제거. (완료)
+- `docs/electron-mcp-setup.md`, `docs/mcp-implementation-plan.md`, `docs/mcp-integration.md` — MCP 전용 문서, 삭제. (완료)
+- `docs/modular-architecture-design.md` — 문서 전체가 MCP 중심 초기 설계 기록이라 상단에 HISTORICAL/DEPRECATED 배너 추가. (완료)
+- `docs/lsp-validation-engine-replacement-plan.md` — "MCP validate tool 유지 여부" 항목을 "MCP 제거됨"으로 갱신. (완료)
+- `.vscode/` 설정 — grep 결과 존재하지 않음(해당 없음).
 
 ### 범위 밖(건드리지 않음)
 - `.worktrees/` 하위 체크아웃 — 별도 git worktree이므로 그대로 둔다.

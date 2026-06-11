@@ -8,7 +8,7 @@ OOXML(`.xlsx`, `.docx`, `.pptx`)과 ODF(`.ods`, `.odt`, `.odp`) 문서를 열어
 MS Open XML SDK 기반 심층 검증을 함께 실행할 수 있습니다.
 
 이 저장소는 `pnpm`과 Turborepo를 사용하는 모노레포입니다. 검증 엔진, XML 파서,
-MCP 서버, Electron 데스크톱 앱과 OOXML LSP submodule을 함께 관리합니다.
+Electron 데스크톱 앱과 OOXML LSP submodule을 함께 관리합니다.
 
 ## 주요 기능
 
@@ -188,8 +188,8 @@ sidecar가 없어도 앱은 정상 동작합니다. 이 경우 LSP 서버는 XSD
 - `packages/core`: OOXML 스키마 검증 엔진
 - `packages/desktop`: Electron 데스크톱 앱
 - `packages/parser`: XML 이벤트 스트리밍 파서
-- `packages/mcp`: MCP 서버와 도구 래퍼
 - `packages/ooxml-lsp`: OOXML LSP Git submodule
+- `tools/validate-xml`: 에디터 없이 스키마 검증을 실행하는 개발용 CLI
 
 ## 사용 예시
 
@@ -235,7 +235,5 @@ pnpm run typecheck
 
 ## 참고 문서
 
-- MCP 통합 시나리오: `docs/mcp-integration.md`
-- Electron/MCP 환경설정: `docs/electron-mcp-setup.md`
 - 검증 엔진 교체 계획: `docs/lsp-validation-engine-replacement-plan.md`
 - LSP/Monaco 연동 흐름: `docs/lsp-monaco-integration-flow.md`

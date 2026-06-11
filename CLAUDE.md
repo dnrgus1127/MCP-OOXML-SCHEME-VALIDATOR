@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-OOXML Schema Validator — a monorepo toolkit for validating XLSX, DOCX, and PPTX files against XSD schemas using a streaming event-based engine. Primary focus is on the core validation engine and Electron desktop app. MCP integration is planned for future development.
+OOXML document editor — a monorepo toolkit for opening OOXML (XLSX, DOCX, PPTX) packages, editing their internal XML, and validating it against XSD schemas using a streaming event-based engine surfaced through an LSP server. The product is the Electron desktop editor; the core validation engine and the LSP server power its diagnostics.
 
 ## Monorepo Structure
 
@@ -14,13 +14,11 @@ OOXML Schema Validator — a monorepo toolkit for validating XLSX, DOCX, and PPT
 ### Supporting Packages
 
 - `packages/parser` — OOXML document parsing, ZIP handling, XML streaming/conversion
+- `packages/ooxml-lsp` — Git submodule providing the LSP server (`@ooxml-tools/lsp-server`) and its engines/validator; the desktop app runs it as a child process for diagnostics
 - `tools/xsd-converter` — Build tool that converts XSD files to JSON schemas
+- `tools/validate-xml` — Developer CLI for validating XML against the schemas without the editor
 - `schemas/` — OOXML XSD source files (sml, wml, pml, dml, shared)
 - `agent/` — AI agent playbooks and mandatory task guides
-
-### Future Development
-
-- `packages/mcp` — MCP server exposing validation tools (lower priority)
 
 ## Mandatory Read For Desktop UI/UX Work
 
@@ -73,8 +71,8 @@ pnpm run generate:schemas   # Convert XSD → JSON schemas
 
 - `@ooxml/core`
 - `@ooxml/parser`
-- `@ooxml/mcp`
 - `@ooxml/desktop`
+- `@ooxml-tools/lsp-server` (from the `packages/ooxml-lsp` submodule)
 
 ## CI
 
