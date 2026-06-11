@@ -7,7 +7,6 @@
 
 - `core`: OOXML XSD 스키마 검증 엔진
 - `parser`: OOXML/ODF 패키지 압축 해제와 XML 파싱 유틸리티
-- `mcp`: 검증 기능을 MCP 도구로 노출하는 서버
 - `desktop`: Electron과 React 기반 데스크톱 앱
 - `ooxml-lsp/packages/*`: OOXML LSP submodule의 워크스페이스 패키지
 
@@ -43,17 +42,6 @@ OOXML/ODF 패키지를 ZIP으로 읽고, 내부 XML을 파싱해 검증 흐름�
 - `src/xml`: XML 파싱과 이벤트 변환
 
 `@ooxml/parser`는 `@ooxml/core`를 의존합니다.
-
-### `@ooxml/mcp`
-
-OOXML 검증 기능을 MCP 서버와 도구 핸들러로 노출합니다.
-
-주요 디렉터리:
-
-- `src/index.ts`: MCP 서버 진입점
-- `src/tools`: 검증 관련 MCP tool 구현
-
-`@ooxml/mcp`는 `@ooxml/core`와 `@ooxml/parser`를 조합해 동작합니다.
 
 ### `@ooxml/desktop`
 
@@ -100,10 +88,6 @@ desktop
   ├─ @ooxml/parser
   └─ @ooxml-tools/lsp-server
 
-mcp
-  ├─ @ooxml/core
-  └─ @ooxml/parser
-
 parser
   └─ @ooxml/core
 
@@ -114,7 +98,7 @@ lsp-server
   └─ @ooxml-tools/ms-validator-bin
 ```
 
-`core`는 하위 런타임 기반 패키지입니다. `desktop`, `mcp`, `parser`, `lsp-server`가
+`core`는 하위 런타임 기반 패키지입니다. `desktop`, `parser`, `lsp-server`가
 검증 기능을 사용할 때 `core`를 참조합니다.
 
 ## 자주 쓰는 명령
@@ -128,7 +112,6 @@ pnpm run build
 # 패키지별 테스트
 pnpm --filter @ooxml/core test
 pnpm --filter @ooxml/parser test
-pnpm --filter @ooxml/mcp test
 pnpm --filter @ooxml/desktop test
 
 # 데스크톱 앱 개발 서버

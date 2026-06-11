@@ -35,9 +35,10 @@
 
 `@ooxml/core` 검증 엔진은 즉시 삭제하지 않는다.
 
-- `packages/core`: 스키마 모델, 기존 테스트, MCP/CLI fallback 용도로 유지 가능
-- `packages/mcp`: 기존 MCP validate tool을 유지할지 별도 결정
+- `packages/core`: 스키마 모델, 기존 테스트, `tools/validate-xml` CLI 검증 경로로 유지
 - `packages/desktop`: 기본 검증 경로에서는 LSP provider만 사용
+
+> 참고: 초기 계획에 있던 `packages/mcp`(MCP validate tool)는 프로젝트를 OOXML 편집기로 재정의하면서 제거했다. 배경은 `docs/superpowers/specs/2026-06-11-mcp-to-editor-package-cleanup-design.md` 참고.
 
 ## 3. 현재 구조의 교체 대상
 

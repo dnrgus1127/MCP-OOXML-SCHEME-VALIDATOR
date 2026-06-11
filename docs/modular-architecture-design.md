@@ -1,5 +1,11 @@
 # OOXML Validator 모듈러 아키텍처 설계
 
+> ⚠️ **HISTORICAL / DEPRECATED** — 이 문서는 초기 "검증 엔진 + MCP 서버 + 데스크톱 앱"
+> 3분할 아키텍처 설계 기록이다. 프로젝트는 이후 **OOXML 문서 편집기(에디터 + LSP 검증)**
+> 로 재정의되었고 `@ooxml/mcp` 패키지와 MCP 서버 계층은 제거되었다. MCP 관련 내용
+> (2.3절, Phase 4 등)은 더 이상 유효하지 않다. 현재 설계는
+> `docs/superpowers/specs/2026-06-11-mcp-to-editor-package-cleanup-design.md`를 참고할 것.
+
 ## 1. 개요
 
 OOXML 문서 검증 시스템을 4개의 독립적인 모듈로 분리하여 관리합니다.
